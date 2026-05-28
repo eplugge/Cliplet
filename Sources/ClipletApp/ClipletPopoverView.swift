@@ -2,16 +2,12 @@ import ClipletCore
 import SwiftUI
 
 struct ClipletPopoverView: View {
-    @State private var history: HistoryModel
+    @EnvironmentObject private var services: AppServices
     @FocusState private var searchFocused: Bool
-
-    init(history: HistoryModel) {
-        self._history = State(initialValue: history)
-    }
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search clips", text: $history.searchQuery)
+            TextField("Search clips", text: $services.history.searchQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .padding(.horizontal, 12)
@@ -23,17 +19,22 @@ struct ClipletPopoverView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(history.filteredClips.enumerated()), id: \.element.id) { index, clip in
-                            ClipRowView(index: index, clip: clip, selected: clip.id == history.selectedClipID)
+                        ForEach(Array(services.history.filteredClips.enumerated()), id: \.element.id) { index, clip in
+                            ClipRowView(index: index, clip: clip, selected: clip.id == services.history.selectedClipID)
                                 .id(clip.id)
                                 .onTapGesture {
-                                    history.markUsed(clip.id, at: Date())
+                                    services.restore(clip)
+                                }
+                                .contextMenu {
+                                    Button("Preview") {
+                                        services.preview(clip)
+                                    }
                                 }
                         }
                     }
                 }
-                .frame(height: CGFloat(history.settings.visibleRowLimit) * ClipRowView.height)
-                .onChange(of: history.selectedClipID) { _, id in
+                .frame(height: CGFloat(services.history.settings.visibleRowLimit) * ClipRowView.height)
+                .onChange(of: services.history.selectedClipID) { _, id in
                     guard let id else { return }
                     proxy.scrollTo(id, anchor: .center)
                 }
@@ -43,7 +44,7 @@ struct ClipletPopoverView: View {
         .background(.regularMaterial)
         .onAppear {
             searchFocused = true
-            history.moveSelectionToStart()
+            services.history.moveSelectionToStart()
         }
     }
 }

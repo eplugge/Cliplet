@@ -7,7 +7,8 @@ struct ClipletApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsSkeletonView()
+            SettingsView()
+                .environmentObject(AppServices.shared)
         }
     }
 }
@@ -19,12 +20,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         menuBarController = MenuBarController()
-    }
-}
-
-private struct SettingsSkeletonView: View {
-    var body: some View {
-        Text("Cliplet Settings")
-            .frame(width: 360, height: 180)
     }
 }
