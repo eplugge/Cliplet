@@ -34,6 +34,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
     public var filename: String?
     public var dimensions: ClipDimensions?
     public var byteSize: Int?
+    public var contentHash: String?
     public var sourceAppBundleID: String?
     public var sourceAppName: String?
     public var createdAt: Date
@@ -49,6 +50,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         filename: String?,
         dimensions: ClipDimensions?,
         byteSize: Int?,
+        contentHash: String? = nil,
         sourceAppBundleID: String?,
         sourceAppName: String?,
         createdAt: Date,
@@ -63,6 +65,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         self.filename = filename
         self.dimensions = dimensions
         self.byteSize = byteSize
+        self.contentHash = contentHash
         self.sourceAppBundleID = sourceAppBundleID
         self.sourceAppName = sourceAppName
         self.createdAt = createdAt
@@ -76,6 +79,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
             preview,
             contentType,
             filename,
+            contentHash,
             sourceAppName,
             sourceAppBundleID
         ]

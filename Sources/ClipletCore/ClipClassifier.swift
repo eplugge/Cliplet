@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public enum ClipClassifier {
@@ -44,10 +45,11 @@ public enum ClipClassifier {
                     kind: .url,
                     preview: trimmedURL,
                     contentType: urlRepresentation.typeIdentifier,
-                    filename: nil,
-                    byteSize: urlRepresentation.data.count,
-                    payload: .inlineText(trimmedURL)
-                )
+                filename: nil,
+                byteSize: urlRepresentation.data.count,
+                contentHash: contentHash(for: urlRepresentation.data),
+                payload: .inlineText(trimmedURL)
+            )
             }
         }
 
@@ -60,6 +62,7 @@ public enum ClipClassifier {
                 contentType: "public.utf8-plain-text",
                 filename: textRepresentation.filename,
                 byteSize: textRepresentation.data.count,
+                contentHash: contentHash(for: textRepresentation.data),
                 payload: .inlineText(text)
             )
         }
@@ -76,6 +79,7 @@ public enum ClipClassifier {
                 contentType: fileRepresentation.typeIdentifier,
                 filename: filename,
                 byteSize: nil,
+                contentHash: contentHash(for: fileRepresentation.data),
                 payload: .fileReference(url)
             )
         }
@@ -103,6 +107,7 @@ public enum ClipClassifier {
                 contentType: imageRepresentation.typeIdentifier,
                 filename: filename,
                 byteSize: byteSize,
+                contentHash: contentHash(for: imageRepresentation.data),
                 payload: payload
             )
         }
@@ -125,6 +130,7 @@ public enum ClipClassifier {
             contentType: contentType,
             filename: filename,
             byteSize: byteSize,
+            contentHash: representation.map { contentHash(for: $0.data) },
             payload: .metadataOnly
         )
     }
@@ -136,6 +142,7 @@ public enum ClipClassifier {
         contentType: String?,
         filename: String?,
         byteSize: Int?,
+        contentHash: String?,
         payload: ClipPayload
     ) -> Clip {
         Clip(
@@ -145,6 +152,7 @@ public enum ClipClassifier {
             filename: filename,
             dimensions: nil,
             byteSize: byteSize,
+            contentHash: contentHash,
             sourceAppBundleID: item.sourceAppBundleID,
             sourceAppName: item.sourceAppName,
             createdAt: item.now,
@@ -243,6 +251,12 @@ public enum ClipClassifier {
             return "\(Int(value)) \(units[unitIndex])"
         }
         return String(format: "%.1f %@", value, units[unitIndex])
+    }
+
+    private static func contentHash(for data: Data) -> String {
+        SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 }
 

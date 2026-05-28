@@ -129,6 +129,14 @@ public struct HistoryModel: Sendable {
     }
 
     private func duplicateIndex(for incoming: Clip) -> Int? {
+        if let incomingHash = incoming.contentHash {
+            return clips.firstIndex { clip in
+                clip.kind == incoming.kind &&
+                    clip.contentHash == incomingHash &&
+                    clip.contentType == incoming.contentType
+            }
+        }
+
         switch incoming.payload {
         case .inlineText(let incomingText):
             return clips.firstIndex { clip in

@@ -52,6 +52,7 @@ final class ClipClassifierTests: XCTestCase {
         XCTAssertEqual(clip.contentType, "public.png")
         XCTAssertEqual(clip.filename, "Screenshot.png")
         XCTAssertEqual(clip.byteSize, 2_048)
+        XCTAssertNotNil(clip.contentHash)
         XCTAssertEqual(clip.payload, .metadataOnly)
     }
 

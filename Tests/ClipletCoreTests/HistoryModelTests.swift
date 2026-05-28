@@ -111,6 +111,34 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.first?.lastUsedAt, Date(timeIntervalSince1970: 2))
     }
 
+    func testAddOrUpdateSuppressesStoredPayloadDuplicatesByContentHash() {
+        let original = makeClip(
+            "Image: Clipboard Image - PNG - 777.2 KB",
+            kind: .image,
+            created: 1,
+            used: 1,
+            contentType: "public.png",
+            contentHash: "same-image-hash",
+            payload: .storedPayload(filename: "first.png")
+        )
+        let duplicate = makeClip(
+            "Image: Clipboard Image - PNG - 777.2 KB",
+            kind: .image,
+            created: 2,
+            used: 2,
+            contentType: "public.png",
+            contentHash: "same-image-hash",
+            payload: .storedPayload(filename: "second.png")
+        )
+        var history = HistoryModel(settings: .defaults, clips: [original])
+
+        history.addOrUpdate(duplicate)
+
+        XCTAssertEqual(history.clips.count, 1)
+        XCTAssertEqual(history.filteredClips.first?.lastUsedAt, Date(timeIntervalSince1970: 2))
+        XCTAssertEqual(history.filteredClips.first?.payload, .storedPayload(filename: "second.png"))
+    }
+
     func testAddOrUpdateClearsSelectionWhenUpdatedDuplicateNoLongerMatchesSearch() {
         let original = makeClip(
             "Image: Photo123.png - PNG - 1024x768",
@@ -222,6 +250,7 @@ final class HistoryModelTests: XCTestCase {
         used: TimeInterval = 1,
         contentType: String? = "public.utf8-plain-text",
         filename: String? = nil,
+        contentHash: String? = nil,
         payload: ClipPayload? = nil
     ) -> Clip {
         Clip(
@@ -231,6 +260,7 @@ final class HistoryModelTests: XCTestCase {
             filename: filename,
             dimensions: nil,
             byteSize: preview.utf8.count,
+            contentHash: contentHash,
             sourceAppBundleID: nil,
             sourceAppName: nil,
             createdAt: Date(timeIntervalSince1970: created),

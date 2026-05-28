@@ -27,6 +27,9 @@ final class PreviewController: NSObject, @preconcurrency QLPreviewPanelDataSourc
 
         panel.dataSource = self
         panel.reloadData()
+        panel.level = .floating
+        panel.setFrame(NSRect(x: 0, y: 0, width: 720, height: 520), display: false)
+        panel.center()
         panel.makeKeyAndOrderFront(nil)
     }
 
