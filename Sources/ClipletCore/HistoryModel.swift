@@ -46,6 +46,9 @@ public struct HistoryModel: Sendable {
         }
 
         trimToLimit()
+        if selectedClipID != nil {
+            reconcileSelectionWithFilteredClips()
+        }
     }
 
     public mutating func markUsed(_ id: UUID, at date: Date) {

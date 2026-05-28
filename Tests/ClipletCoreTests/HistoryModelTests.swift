@@ -111,6 +111,33 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.first?.lastUsedAt, Date(timeIntervalSince1970: 2))
     }
 
+    func testAddOrUpdateClearsSelectionWhenUpdatedDuplicateNoLongerMatchesSearch() {
+        let original = makeClip(
+            "Image: Photo123.png - PNG - 1024x768",
+            kind: .image,
+            created: 1,
+            used: 1,
+            contentType: "public.png",
+            filename: "Photo123.png",
+            payload: .inlineText("same clipboard payload")
+        )
+        let duplicate = makeClip(
+            "same clipboard payload",
+            created: 2,
+            used: 2,
+            contentType: "public.utf8-plain-text",
+            payload: .inlineText("same clipboard payload")
+        )
+        var history = HistoryModel(settings: .defaults, clips: [original], searchQuery: "png")
+
+        XCTAssertEqual(history.selectedClipID, original.id)
+
+        history.addOrUpdate(duplicate)
+
+        XCTAssertTrue(history.filteredClips.isEmpty)
+        XCTAssertNil(history.selectedClipID)
+    }
+
     func testMoveSelectionUsesFilteredOrderAndBounds() {
         let first = makeClip("first", pinned: true, created: 1, used: 1)
         let second = makeClip("second", created: 2, used: 2)
