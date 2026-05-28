@@ -3,7 +3,11 @@ import Foundation
 public struct HistoryModel: Sendable {
     public private(set) var clips: [Clip]
     public var settings: ClipSettings
-    public var searchQuery: String
+    public var searchQuery: String {
+        didSet {
+            reconcileSelectionWithFilteredClips()
+        }
+    }
     public private(set) var selectedClipID: UUID?
 
     private var pendingDelete: (id: UUID, requestedAt: Date)?
@@ -15,6 +19,7 @@ public struct HistoryModel: Sendable {
         self.searchQuery = searchQuery
         self.selectedClipID = selectedClipID ?? clips.first?.id
         trimToLimit()
+        reconcileSelectionWithFilteredClips()
     }
 
     public var filteredClips: [Clip] {
@@ -71,9 +76,12 @@ public struct HistoryModel: Sendable {
             return
         }
 
-        let currentIndex = selectedClipID
-            .flatMap { id in visibleClips.firstIndex(where: { $0.id == id }) }
-            ?? 0
+        guard let currentIndex = selectedClipID
+            .flatMap({ id in visibleClips.firstIndex(where: { $0.id == id }) }) else {
+            selectedClipID = offset < 0 ? visibleClips.last?.id : visibleClips.first?.id
+            return
+        }
+
         let nextIndex = min(max(currentIndex + offset, 0), visibleClips.count - 1)
         selectedClipID = visibleClips[nextIndex].id
     }
@@ -142,8 +150,17 @@ public struct HistoryModel: Sendable {
         clips = Array(clips.sorted(by: clipSort).prefix(settings.rememberedClipLimit))
 
         if let selectedClipID, !clips.contains(where: { $0.id == selectedClipID }) {
-            self.selectedClipID = filteredClips.first?.id
+            reconcileSelectionWithFilteredClips()
         }
+    }
+
+    private mutating func reconcileSelectionWithFilteredClips() {
+        let visibleClips = filteredClips
+        if let selectedClipID, visibleClips.contains(where: { $0.id == selectedClipID }) {
+            return
+        }
+
+        selectedClipID = visibleClips.first?.id
     }
 
     private func clipSort(_ lhs: Clip, _ rhs: Clip) -> Bool {

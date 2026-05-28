@@ -29,6 +29,30 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.map(\.preview), ["Image: Photo123.png - PNG - 1024x768"])
     }
 
+    func testSearchQuerySelectsFirstMatchWhenCurrentSelectionIsFilteredOut() {
+        let first = makeClip("alpha", created: 1, used: 1)
+        let second = makeClip("beta", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [first, second])
+
+        history.moveSelectionToEnd()
+        XCTAssertEqual(history.selectedClipID, first.id)
+
+        history.searchQuery = "beta"
+
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["beta"])
+        XCTAssertEqual(history.selectedClipID, second.id)
+    }
+
+    func testSearchQueryClearsSelectionWhenThereAreNoMatches() {
+        let clip = makeClip("alpha")
+        var history = HistoryModel(settings: .defaults, clips: [clip])
+
+        history.searchQuery = "missing"
+
+        XCTAssertTrue(history.filteredClips.isEmpty)
+        XCTAssertNil(history.selectedClipID)
+    }
+
     func testSelectingClipPromotesExistingEntryWithoutDuplicateWhenEnabled() {
         let first = makeClip("first", created: 1, used: 1)
         let second = makeClip("second", created: 2, used: 2)
@@ -104,6 +128,34 @@ final class HistoryModelTests: XCTestCase {
 
         history.moveSelection(offset: 10)
         XCTAssertEqual(history.selectedClipID, second.id)
+    }
+
+    func testMoveSelectionFromNoSelectionChoosesFirstVisibleClipForPositiveOffset() {
+        let first = makeClip("first", created: 1, used: 1)
+        let second = makeClip("second", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults)
+        history.addOrUpdate(first)
+        history.addOrUpdate(second)
+
+        XCTAssertNil(history.selectedClipID)
+
+        history.moveSelection(offset: 1)
+
+        XCTAssertEqual(history.selectedClipID, second.id)
+    }
+
+    func testMoveSelectionFromNoSelectionChoosesLastVisibleClipForNegativeOffset() {
+        let first = makeClip("first", created: 1, used: 1)
+        let second = makeClip("second", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults)
+        history.addOrUpdate(first)
+        history.addOrUpdate(second)
+
+        XCTAssertNil(history.selectedClipID)
+
+        history.moveSelection(offset: -1)
+
+        XCTAssertEqual(history.selectedClipID, first.id)
     }
 
     func testTrimPreservesPinnedAndMostRecentlyUsedClips() {
