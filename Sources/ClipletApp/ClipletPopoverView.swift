@@ -70,8 +70,8 @@ private struct ClipRowView: View {
 
             Spacer(minLength: 12)
 
-            if index < 10 {
-                Text("⌘\(index)")
+            if index < 9 {
+                Text("⌘\(index + 1)")
                     .font(.system(size: 12))
                     .foregroundStyle(.tertiary)
             }

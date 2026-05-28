@@ -307,8 +307,9 @@ final class AppServices: ObservableObject {
 
     private func restoreNumberedClip(_ number: Int) {
         let clips = history.filteredClips
-        guard number >= 0, number < min(clips.count, 10) else { return }
-        restore(clips[number])
+        let index = number - 1
+        guard index >= 0, index < min(clips.count, 9) else { return }
+        restore(clips[index])
     }
 
     private func pasteIfEnabled() {

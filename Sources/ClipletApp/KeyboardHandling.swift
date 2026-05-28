@@ -17,7 +17,7 @@ enum ClipletKeyCommand: Equatable {
         if event.modifierFlags.contains(.command),
            let characters = event.charactersIgnoringModifiers,
            let number = Int(characters),
-           (0...9).contains(number) {
+           (1...9).contains(number) {
             return .numbered(number)
         }
 
