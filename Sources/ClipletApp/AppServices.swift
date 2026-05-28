@@ -2,6 +2,7 @@ import AppKit
 import ClipletCore
 import Combine
 import Foundation
+import ServiceManagement
 
 @MainActor
 final class AppServices: ObservableObject {
@@ -11,32 +12,70 @@ final class AppServices: ObservableObject {
     @Published var settings: ClipSettings {
         didSet {
             history.settings = settings
+            saveSettings()
+            monitor?.settings = settings
         }
     }
-    @Published var exclusions: ExcludedApps
+    @Published var exclusions: ExcludedApps {
+        didSet {
+            saveExclusions()
+            monitor?.excludedApps = exclusions
+        }
+    }
+    @Published var excludedAppInput: String = "" {
+        didSet {
+            guard !isUpdatingExcludedAppInput else { return }
+            exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
+        }
+    }
+    @Published var launchAtLogin: Bool {
+        didSet {
+            UserDefaults.standard.set(launchAtLogin, forKey: Self.launchAtLoginKey)
+            setLaunchAtLogin(launchAtLogin)
+        }
+    }
 
     let store: ClipStore
 
     private let storeRootDirectory: URL
     private let previewController: PreviewController
+    private var monitor: ClipboardMonitor?
+    private var pollTimer: Timer?
+    private var pendingPayloadData: [String: Data] = [:]
+    private var isUpdatingExcludedAppInput = false
+
+    private static let settingsKey = "Cliplet.settings"
+    private static let exclusionsKey = "Cliplet.exclusions"
+    private static let launchAtLoginKey = "Cliplet.launchAtLogin"
 
     init() {
         let supportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Cliplet", isDirectory: true)
 
         self.storeRootDirectory = supportDirectory
-        let defaultSettings = ClipSettings.defaults
+        let storedSettings = Self.loadSettings() ?? .defaults
+        let storedExclusions = Self.loadExclusions()
 
         self.store = ClipStore(rootDirectory: supportDirectory)
-        self.settings = defaultSettings
-        self.exclusions = ExcludedApps()
+        self.settings = storedSettings
+        self.exclusions = storedExclusions
+        self.launchAtLogin = UserDefaults.standard.bool(forKey: Self.launchAtLoginKey)
         self.previewController = PreviewController()
 
         let loadedClips = (try? store.load()) ?? []
-        self.history = HistoryModel(settings: defaultSettings, clips: loadedClips)
+        self.history = HistoryModel(settings: storedSettings, clips: loadedClips)
+        self.excludedAppInput = storedExclusions.bundleIDs.joined(separator: "\n")
+
+        configureMonitor()
+        startPolling()
     }
 
     func capture(_ clip: Clip) {
+        if case .storedPayload(let filename) = clip.payload,
+           let data = pendingPayloadData.removeValue(forKey: filename) {
+            try? store.writePayload(data, filename: filename)
+        }
+
         history.addOrUpdate(clip)
         persistQuietly()
     }
@@ -71,13 +110,19 @@ final class AppServices: ObservableObject {
             return
         }
 
+        let previousItems = pasteboard.pasteboardItems ?? []
         pasteboard.clearContents()
         guard write() else {
+            if !previousItems.isEmpty {
+                pasteboard.writeObjects(previousItems)
+            }
             return
         }
 
+        monitor?.suppressNextChangeCount(pasteboard.changeCount)
         history.markUsed(clip.id, at: Date())
         persistQuietly()
+        pasteIfEnabled()
     }
 
     func preview(_ clip: Clip) {
@@ -96,5 +141,238 @@ final class AppServices: ObservableObject {
         })
 
         try? store.prunePayloads(referencedFilenames: referencedPayloads)
+    }
+
+    func handle(_ command: ClipletKeyCommand) {
+        switch command {
+        case .moveUp:
+            history.moveSelection(offset: -1)
+        case .moveDown:
+            history.moveSelection(offset: 1)
+        case .pageUp:
+            history.moveSelection(offset: -settings.visibleRowLimit)
+        case .pageDown:
+            history.moveSelection(offset: settings.visibleRowLimit)
+        case .home:
+            history.moveSelectionToStart()
+        case .end:
+            history.moveSelectionToEnd()
+        case .enter:
+            restoreSelectedClip()
+        case .preview:
+            previewSelectedClip()
+        case .close:
+            NSApp.keyWindow?.close()
+        case .delete:
+            deleteSelectedClip()
+        case .numbered(let number):
+            restoreNumberedClip(number)
+        }
+    }
+
+    func addExcludedBundleIDFromInput() {
+        exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
+        syncExcludedAppInput()
+    }
+
+    private func configureMonitor() {
+        monitor = ClipboardMonitor(
+            settings: settings,
+            excludedApps: exclusions,
+            sourceAppProvider: { [weak self] in
+                self?.frontmostSourceApp()
+            },
+            readItem: { [weak self] in
+                self?.readGeneralPasteboardItem()
+            },
+            onCapture: { [weak self] clip in
+                Task { @MainActor in
+                    self?.capture(clip)
+                }
+            }
+        )
+    }
+
+    private func startPolling() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.pollClipboard()
+            }
+        }
+    }
+
+    private func pollClipboard() {
+        monitor?.poll(changeCount: NSPasteboard.general.changeCount, now: Date())
+    }
+
+    private func frontmostSourceApp() -> ClipboardMonitor.SourceApp? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        return ClipboardMonitor.SourceApp(bundleID: app.bundleIdentifier, name: app.localizedName)
+    }
+
+    private func readGeneralPasteboardItem() -> ClipClassifier.RawItem? {
+        let pasteboard = NSPasteboard.general
+        let items = pasteboard.pasteboardItems ?? []
+        guard let item = items.first else { return nil }
+
+        var representations: [ClipClassifier.RawRepresentation] = []
+        for type in item.types {
+            guard let data = item.data(forType: type) else { continue }
+            let typeIdentifier = type.rawValue
+            let filename = filename(for: item, type: type, data: data)
+            let storedPayloadFilename = data.count <= settings.maximumPersistedClipBytes && settings.persistBinaryClips
+                ? storedPayloadFilename(for: typeIdentifier, filename: filename)
+                : nil
+            if let storedPayloadFilename {
+                pendingPayloadData[storedPayloadFilename] = data
+            }
+            representations.append(
+                ClipClassifier.RawRepresentation(
+                    typeIdentifier: typeIdentifier,
+                    data: data,
+                    filename: filename,
+                    storedPayloadFilename: storedPayloadFilename
+                )
+            )
+        }
+
+        guard !representations.isEmpty else { return nil }
+        let source = frontmostSourceApp()
+        return ClipClassifier.RawItem(
+            representations: representations,
+            sourceAppBundleID: source?.bundleID,
+            sourceAppName: source?.name,
+            now: Date()
+        )
+    }
+
+    private func filename(for item: NSPasteboardItem, type: NSPasteboard.PasteboardType, data: Data) -> String? {
+        if type == .fileURL,
+           let string = String(data: data, encoding: .utf8),
+           let url = URL(string: string.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            return url.lastPathComponent
+        }
+
+        return item.string(forType: NSPasteboard.PasteboardType("public.url-name"))
+    }
+
+    private func storedPayloadFilename(for typeIdentifier: String, filename: String?) -> String? {
+        let lowered = typeIdentifier.lowercased()
+        guard lowered == "public.png" ||
+            lowered == "public.jpeg" ||
+            lowered == "public.jpg" ||
+            lowered == "public.tiff" ||
+            lowered.contains("image") else {
+            return nil
+        }
+
+        let extensionLabel = URL(fileURLWithPath: filename ?? "").pathExtension
+        let fallbackExtension: String
+        if lowered.contains("png") {
+            fallbackExtension = "png"
+        } else if lowered.contains("jpeg") || lowered.contains("jpg") {
+            fallbackExtension = "jpeg"
+        } else if lowered.contains("tiff") {
+            fallbackExtension = "tiff"
+        } else {
+            fallbackExtension = "data"
+        }
+
+        let payloadExtension = extensionLabel.isEmpty ? fallbackExtension : extensionLabel
+        return "\(UUID().uuidString).\(payloadExtension)"
+    }
+
+    private func restoreSelectedClip() {
+        guard let clip = selectedClip else { return }
+        restore(clip)
+    }
+
+    private func previewSelectedClip() {
+        guard let clip = selectedClip else { return }
+        preview(clip)
+    }
+
+    private func deleteSelectedClip() {
+        guard let id = history.selectedClipID else { return }
+        if history.requestDelete(id, now: Date()) {
+            persistQuietly()
+        }
+    }
+
+    private func restoreNumberedClip(_ number: Int) {
+        let clips = history.filteredClips
+        guard number >= 0, number < min(clips.count, 10) else { return }
+        restore(clips[number])
+    }
+
+    private func pasteIfEnabled() {
+        guard settings.autoPasteAfterSelection,
+              AXIsProcessTrusted() else {
+            return
+        }
+
+        let source = CGEventSource(stateID: .hidSystemState)
+        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
+        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
+        keyDown?.flags = .maskCommand
+        keyUp?.flags = .maskCommand
+        keyDown?.post(tap: .cghidEventTap)
+        keyUp?.post(tap: .cghidEventTap)
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            UserDefaults.standard.set(false, forKey: Self.launchAtLoginKey)
+        }
+    }
+
+    private var selectedClip: Clip? {
+        guard let id = history.selectedClipID else { return nil }
+        return history.filteredClips.first { $0.id == id }
+    }
+
+    private func saveSettings() {
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        UserDefaults.standard.set(data, forKey: Self.settingsKey)
+    }
+
+    private static func loadSettings() -> ClipSettings? {
+        guard let data = UserDefaults.standard.data(forKey: settingsKey) else { return nil }
+        return try? JSONDecoder().decode(ClipSettings.self, from: data)
+    }
+
+    private func saveExclusions() {
+        guard let data = try? JSONEncoder().encode(exclusions) else { return }
+        UserDefaults.standard.set(data, forKey: Self.exclusionsKey)
+        syncExcludedAppInput()
+    }
+
+    private static func loadExclusions() -> ExcludedApps {
+        guard let data = UserDefaults.standard.data(forKey: exclusionsKey),
+              let exclusions = try? JSONDecoder().decode(ExcludedApps.self, from: data) else {
+            return ExcludedApps()
+        }
+        return exclusions
+    }
+
+    private func syncExcludedAppInput() {
+        let value = exclusions.bundleIDs.joined(separator: "\n")
+        guard excludedAppInput != value else { return }
+        isUpdatingExcludedAppInput = true
+        excludedAppInput = value
+        isUpdatingExcludedAppInput = false
+    }
+}
+
+private extension String {
+    func lines() -> [String] {
+        components(separatedBy: .newlines)
     }
 }

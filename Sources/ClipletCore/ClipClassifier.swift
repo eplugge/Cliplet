@@ -5,11 +5,13 @@ public enum ClipClassifier {
         public var typeIdentifier: String
         public var data: Data
         public var filename: String?
+        public var storedPayloadFilename: String?
 
-        public init(typeIdentifier: String, data: Data, filename: String?) {
+        public init(typeIdentifier: String, data: Data, filename: String?, storedPayloadFilename: String? = nil) {
             self.typeIdentifier = typeIdentifier
             self.data = data
             self.filename = filename
+            self.storedPayloadFilename = storedPayloadFilename
         }
     }
 
@@ -69,7 +71,11 @@ public enum ClipClassifier {
             let byteSize = imageRepresentation.data.count
             let payload: ClipPayload
             if settings.persistBinaryClips && byteSize <= settings.maximumPersistedClipBytes {
-                payload = .storedPayload(filename: filename ?? defaultImageFilename(for: imageRepresentation.typeIdentifier))
+                payload = .storedPayload(
+                    filename: imageRepresentation.storedPayloadFilename ??
+                        filename ??
+                        defaultImageFilename(for: imageRepresentation.typeIdentifier)
+                )
             } else {
                 payload = .metadataOnly
             }

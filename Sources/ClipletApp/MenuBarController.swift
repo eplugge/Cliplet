@@ -6,6 +6,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private let services: AppServices
+    private var keyMonitor: Any?
 
     override init() {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -15,6 +16,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 
         configureStatusItem()
         configurePopover()
+        configureKeyMonitor()
     }
 
     private func configureStatusItem() {
@@ -42,6 +44,19 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
+        }
+    }
+
+    private func configureKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self,
+                  self.popover.isShown,
+                  let command = ClipletKeyCommand.parse(event) else {
+                return event
+            }
+
+            self.services.handle(command)
+            return nil
         }
     }
 }
