@@ -95,6 +95,25 @@ final class ClipClassifierTests: XCTestCase {
         XCTAssertEqual(clip.payload, .inlineText("https://example.com/path"))
     }
 
+    func testURLRepresentationWinsOverPlainTextFallbackAndIgnoresURLNameAsPayload() {
+        let item = ClipClassifier.RawItem(
+            representations: [
+                .init(typeIdentifier: "public.url-name", data: Data("Example title".utf8), filename: nil),
+                .init(typeIdentifier: "public.utf8-plain-text", data: Data("https://example.com/text".utf8), filename: nil),
+                .init(typeIdentifier: "public.url", data: Data("https://example.com/url".utf8), filename: nil)
+            ],
+            sourceAppBundleID: nil,
+            sourceAppName: nil,
+            now: Date(timeIntervalSince1970: 360)
+        )
+
+        let clip = ClipClassifier.classify(item, settings: .defaults)
+
+        XCTAssertEqual(clip.kind, .url)
+        XCTAssertEqual(clip.preview, "https://example.com/url")
+        XCTAssertEqual(clip.payload, .inlineText("https://example.com/url"))
+    }
+
     func testBinaryPersistenceDisabledForcesMetadataOnly() {
         var settings = ClipSettings.defaults
         settings.persistBinaryClips = false

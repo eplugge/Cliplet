@@ -35,6 +35,22 @@ public enum ClipClassifier {
     }
 
     public static func classify(_ item: RawItem, settings: ClipSettings) -> Clip {
+        if let urlRepresentation = item.representations.first(where: isURLRepresentation),
+           let urlString = String(data: urlRepresentation.data, encoding: .utf8) {
+            let trimmedURL = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if URL(string: trimmedURL) != nil {
+                return makeClip(
+                    item: item,
+                    kind: .url,
+                    preview: trimmedURL,
+                    contentType: urlRepresentation.typeIdentifier,
+                    filename: nil,
+                    byteSize: urlRepresentation.data.count,
+                    payload: .inlineText(trimmedURL)
+                )
+            }
+        }
+
         if let textRepresentation = item.representations.first(where: isTextRepresentation),
            let text = String(data: textRepresentation.data, encoding: .utf8) {
             return makeClip(
@@ -62,22 +78,6 @@ public enum ClipClassifier {
                 byteSize: nil,
                 payload: .fileReference(url)
             )
-        }
-
-        if let urlRepresentation = item.representations.first(where: isURLRepresentation),
-           let urlString = String(data: urlRepresentation.data, encoding: .utf8) {
-            let trimmedURL = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-            if URL(string: trimmedURL) != nil {
-                return makeClip(
-                    item: item,
-                    kind: .url,
-                    preview: trimmedURL,
-                    contentType: urlRepresentation.typeIdentifier,
-                    filename: nil,
-                    byteSize: urlRepresentation.data.count,
-                    payload: .inlineText(trimmedURL)
-                )
-            }
         }
 
         if let imageRepresentation = item.representations.first(where: isImageRepresentation) {
@@ -168,8 +168,7 @@ public enum ClipClassifier {
     }
 
     private static func isURLRepresentation(_ representation: RawRepresentation) -> Bool {
-        let typeIdentifier = representation.typeIdentifier.lowercased()
-        return typeIdentifier == "public.url" || typeIdentifier == "public.url-name"
+        representation.typeIdentifier.lowercased() == "public.url"
     }
 
     private static func isImageRepresentation(_ representation: RawRepresentation) -> Bool {
