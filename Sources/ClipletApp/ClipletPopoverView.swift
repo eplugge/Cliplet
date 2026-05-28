@@ -7,23 +7,30 @@ struct ClipletPopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .leading) {
-                if services.history.searchQuery.isEmpty {
-                    Text(services.currentClipboardPreview)
+            ZStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Current clipboard")
+                        .font(.system(size: 9, weight: .medium))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.quaternary)
+
+                    Text(services.history.searchQuery.isEmpty ? services.currentClipboardPreview : "Search clips")
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 12)
                 }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 TextField("", text: $services.history.searchQuery)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .padding(.horizontal, 12)
+                    .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
                     .focused($searchFocused)
             }
-            .frame(height: 34)
+            .frame(height: 48)
 
             Divider()
 
