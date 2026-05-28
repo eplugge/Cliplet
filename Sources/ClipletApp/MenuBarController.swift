@@ -55,6 +55,11 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 return event
             }
 
+            if command == .delete,
+               self.popover.contentViewController?.view.window?.firstResponder is NSTextView {
+                return event
+            }
+
             self.services.handle(command)
             return nil
         }

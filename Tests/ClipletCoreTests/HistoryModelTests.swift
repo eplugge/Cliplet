@@ -185,6 +185,20 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.selectedClipID, first.id)
     }
 
+    func testSelectClipOnlySelectsVisibleClips() {
+        let visible = makeClip("visible match", created: 1, used: 1)
+        let hidden = makeClip("hidden", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [visible, hidden], searchQuery: "match")
+
+        history.selectClip(hidden.id)
+
+        XCTAssertEqual(history.selectedClipID, visible.id)
+
+        history.selectClip(visible.id)
+
+        XCTAssertEqual(history.selectedClipID, visible.id)
+    }
+
     func testTrimPreservesPinnedAndMostRecentlyUsedClips() {
         var settings = ClipSettings.defaults
         settings.rememberedClipLimit = 2

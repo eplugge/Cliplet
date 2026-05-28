@@ -34,6 +34,7 @@ final class AppServices: ObservableObject {
             setLaunchAtLogin(launchAtLogin)
         }
     }
+    @Published private(set) var currentClipboardPreview: String = "Clipboard is empty"
 
     let store: ClipStore
 
@@ -76,6 +77,7 @@ final class AppServices: ObservableObject {
             try? store.writePayload(data, filename: filename)
         }
 
+        currentClipboardPreview = clip.preview
         history.addOrUpdate(clip)
         persistQuietly()
     }
@@ -120,6 +122,7 @@ final class AppServices: ObservableObject {
         }
 
         monitor?.suppressNextChangeCount(pasteboard.changeCount)
+        currentClipboardPreview = clip.preview
         history.markUsed(clip.id, at: Date())
         persistQuietly()
         pasteIfEnabled()
@@ -132,6 +135,10 @@ final class AppServices: ObservableObject {
     func togglePinned(_ clip: Clip) {
         history.setPinned(clip.id, isPinned: !clip.isPinned)
         persistQuietly()
+    }
+
+    func select(_ clip: Clip?) {
+        history.selectClip(clip?.id)
     }
 
     func persistQuietly() {

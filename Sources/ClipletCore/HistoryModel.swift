@@ -97,6 +97,17 @@ public struct HistoryModel: Sendable {
         selectedClipID = filteredClips.last?.id
     }
 
+    public mutating func selectClip(_ id: UUID?) {
+        guard let id else {
+            selectedClipID = nil
+            return
+        }
+
+        if filteredClips.contains(where: { $0.id == id }) {
+            selectedClipID = id
+        }
+    }
+
     @discardableResult
     public mutating func requestDelete(_ id: UUID, now: Date) -> Bool {
         if let pendingDelete,

@@ -7,12 +7,23 @@ struct ClipletPopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search clips", text: $services.history.searchQuery)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .focused($searchFocused)
+            ZStack(alignment: .leading) {
+                if services.history.searchQuery.isEmpty {
+                    Text(services.currentClipboardPreview)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 12)
+                }
+
+                TextField("", text: $services.history.searchQuery)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 12)
+                    .focused($searchFocused)
+            }
+            .frame(height: 34)
 
             Divider()
 
@@ -22,6 +33,11 @@ struct ClipletPopoverView: View {
                         ForEach(Array(services.history.filteredClips.enumerated()), id: \.element.id) { index, clip in
                             ClipRowView(index: index, clip: clip, selected: clip.id == services.history.selectedClipID)
                                 .id(clip.id)
+                                .onHover { hovering in
+                                    if hovering {
+                                        services.select(clip)
+                                    }
+                                }
                                 .onTapGesture {
                                     services.restore(clip)
                                 }
