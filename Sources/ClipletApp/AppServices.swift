@@ -43,14 +43,19 @@ final class AppServices: ObservableObject {
 
     func restore(_ clip: Clip) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
+
+        let write: () -> Bool
 
         switch PasteboardWriting.writeRequest(for: clip) {
         case .text(let text):
-            pasteboard.setString(text, forType: .string)
+            write = {
+                pasteboard.setString(text, forType: .string)
+            }
 
         case .file(let url):
-            pasteboard.writeObjects([url as NSURL])
+            write = {
+                pasteboard.writeObjects([url as NSURL])
+            }
 
         case .storedPayload(let filename, let contentType):
             guard let contentType,
@@ -58,9 +63,16 @@ final class AppServices: ObservableObject {
                 return
             }
 
-            pasteboard.setData(data, forType: NSPasteboard.PasteboardType(contentType))
+            write = {
+                pasteboard.setData(data, forType: NSPasteboard.PasteboardType(contentType))
+            }
 
         case .unavailable:
+            return
+        }
+
+        pasteboard.clearContents()
+        guard write() else {
             return
         }
 
