@@ -29,6 +29,10 @@ struct ClipletPopoverView: View {
                                     Button("Preview") {
                                         services.preview(clip)
                                     }
+
+                                    Button(clip.isPinned ? "Unpin" : "Pin") {
+                                        services.togglePinned(clip)
+                                    }
                                 }
                         }
                     }

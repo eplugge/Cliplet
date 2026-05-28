@@ -129,6 +129,11 @@ final class AppServices: ObservableObject {
         previewController.preview(clip: clip, storeRootDirectory: storeRootDirectory)
     }
 
+    func togglePinned(_ clip: Clip) {
+        history.setPinned(clip.id, isPinned: !clip.isPinned)
+        persistQuietly()
+    }
+
     func persistQuietly() {
         try? store.save(history.clips)
 
