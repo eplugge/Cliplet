@@ -124,6 +124,7 @@ struct ClipletPopoverView: View {
 private struct ClipRowView: View {
     static let height: CGFloat = 23
 
+    @EnvironmentObject private var services: AppServices
     var index: Int
     var clip: Clip
     var selected: Bool
@@ -151,9 +152,12 @@ private struct ClipRowView: View {
         .background(rowBackground)
         // Make the whole row width hit-test for hover and taps, not just the text.
         .contentShape(Rectangle())
-        // Hover only highlights this row locally — it does not touch the shared
-        // model, so it never triggers a re-filter/re-sort or a scroll.
-        .onHover { isHovered = $0 }
+        // Hover highlights this row locally (no model churn, no scroll) and records
+        // it as the target for Space-to-preview via a non-published id.
+        .onHover { hovering in
+            isHovered = hovering
+            services.hover(clip.id, isHovering: hovering)
+        }
     }
 
     private var rowBackground: Color {

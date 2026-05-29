@@ -38,6 +38,9 @@ final class AppServices: ObservableObject {
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
+    // The row currently under the mouse. Deliberately NOT @Published: hover updates
+    // must not trigger a re-render. Read only when a key command fires.
+    private var hoveredClipID: UUID?
 
     private static let settingsKey = "Cliplet.settings"
     private static let exclusionsKey = "Cliplet.exclusions"
@@ -177,8 +180,12 @@ final class AppServices: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func select(_ clip: Clip?) {
-        history.selectClip(clip?.id)
+    func hover(_ id: UUID, isHovering: Bool) {
+        if isHovering {
+            hoveredClipID = id
+        } else if hoveredClipID == id {
+            hoveredClipID = nil
+        }
     }
 
     func persistQuietly() {
@@ -353,7 +360,7 @@ final class AppServices: ObservableObject {
     }
 
     private func previewSelectedClip() {
-        guard let clip = selectedClip else { return }
+        guard let clip = previewTargetClip else { return }
         preview(clip)
     }
 
@@ -401,6 +408,16 @@ final class AppServices: ObservableObject {
     private var selectedClip: Clip? {
         guard let id = history.selectedClipID else { return nil }
         return history.filteredClips.first { $0.id == id }
+    }
+
+    /// Space previews the row under the mouse when there is one, otherwise the
+    /// keyboard-selected row.
+    private var previewTargetClip: Clip? {
+        if let hoveredClipID,
+           let clip = history.filteredClips.first(where: { $0.id == hoveredClipID }) {
+            return clip
+        }
+        return selectedClip
     }
 
     private func saveSettings() {
