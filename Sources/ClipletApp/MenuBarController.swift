@@ -7,6 +7,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private let popover: NSPopover
     private let services: AppServices
     private var keyMonitor: Any?
+    private var previousApp: NSRunningApplication?
 
     override init() {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -17,6 +18,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         configureStatusItem()
         configurePopover()
         configureKeyMonitor()
+
+        services.preparePasteTarget = { [weak self] in
+            self?.dismissForPaste()
+        }
     }
 
     private func configureStatusItem() {
@@ -42,9 +47,16 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            // Remember who had focus so auto-paste can return there afterwards.
+            previousApp = NSWorkspace.shared.frontmostApplication
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private func dismissForPaste() {
+        popover.performClose(nil)
+        previousApp?.activate()
     }
 
     private func configureKeyMonitor() {

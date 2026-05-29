@@ -30,6 +30,11 @@ final class AppServices: ObservableObject {
         }
     }
 
+    /// Set by MenuBarController: dismiss the popover and re-activate whichever app was
+    /// frontmost before it opened, so an auto-paste lands there and not in Cliplet's
+    /// own search field.
+    var preparePasteTarget: (() -> Void)?
+
     let store: ClipStore
 
     private let storeRootDirectory: URL
@@ -384,6 +389,17 @@ final class AppServices: ObservableObject {
             return
         }
 
+        // Close the popover and hand focus back to the previously-frontmost app first,
+        // otherwise the synthetic ⌘V lands in Cliplet's own search field.
+        preparePasteTarget?()
+
+        // Give the focus change a moment to settle before posting the keystroke.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            Self.postCommandV()
+        }
+    }
+
+    private static func postCommandV() {
         let source = CGEventSource(stateID: .hidSystemState)
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
