@@ -30,7 +30,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.behavior = .transient
         popover.animates = false
         popover.delegate = self
-        popover.contentSize = NSSize(width: 404, height: 430)
+        popover.contentSize = NSSize(width: 440, height: 430)
         popover.contentViewController = NSHostingController(
             rootView: ClipletPopoverView()
                 .environmentObject(services)

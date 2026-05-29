@@ -52,7 +52,7 @@ struct ClipletPopoverView: View {
             Divider()
             footer
         }
-        .frame(width: 404)
+        .frame(width: 440)
         .background(.regularMaterial)
         .onAppear {
             searchFocused = true
@@ -66,7 +66,7 @@ struct ClipletPopoverView: View {
     /// scrollable when it exceeds this height.
     private var listHeight: CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-        let chromeHeight: CGFloat = 104 // header + footer + dividers
+        let chromeHeight: CGFloat = 142 // header + footer + dividers
         let edgeMargin: CGFloat = 40 // keep clear of the screen edges
         let available = screenHeight - chromeHeight - edgeMargin
 
@@ -110,33 +110,22 @@ struct ClipletPopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 0) {
-            Button("Clear") {
-                services.clearHistory()
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-            .contentShape(Rectangle())
-
-            Divider()
-
-            HStack(spacing: 18) {
-                Button("Preferences") {
-                    services.showSettings()
-                }
-                .buttonStyle(.plain)
-
-                Button("Quit") {
-                    services.quit()
-                }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 8)
-            }
-            .frame(height: 26)
+            footerButton("Clear", action: services.clearHistory)
+            footerButton("Preferences", action: services.showSettings)
+            footerButton("Quit", action: services.quit)
         }
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
+        .padding(.vertical, 4)
+    }
+
+    private func footerButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .padding(.horizontal, 12)
+        .frame(height: 28)
     }
 }
 
