@@ -424,6 +424,7 @@ final class AppServices: ObservableObject {
     }
 
     private func pasteIfEnabled() {
+        #if !APPSTORE
         guard settings.autoPasteAfterSelection,
               AXIsProcessTrusted() else {
             return
@@ -434,8 +435,12 @@ final class AppServices: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             Self.postCommandV()
         }
+        #endif
+        // App Store (sandboxed) build: auto-paste is unavailable — the clip is on the
+        // pasteboard and the user pastes with ⌘V themselves.
     }
 
+    #if !APPSTORE
     private static func postCommandV() {
         let source = CGEventSource(stateID: .hidSystemState)
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
@@ -445,6 +450,7 @@ final class AppServices: ObservableObject {
         keyDown?.post(tap: .cghidEventTap)
         keyUp?.post(tap: .cghidEventTap)
     }
+    #endif
 
     private func setLaunchAtLogin(_ enabled: Bool) {
         do {
