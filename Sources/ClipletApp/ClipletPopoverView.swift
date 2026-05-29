@@ -89,28 +89,34 @@ struct ClipletPopoverView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            Button("Preferences") {
-                services.showSettings()
-            }
-            .buttonStyle(.plain)
-
+        VStack(spacing: 0) {
             Button("Clear") {
                 services.clearHistory()
             }
             .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+            .contentShape(Rectangle())
 
-            Spacer(minLength: 8)
+            Divider()
 
-            Button("Quit") {
-                services.quit()
+            HStack(spacing: 18) {
+                Button("Preferences") {
+                    services.showSettings()
+                }
+                .buttonStyle(.plain)
+
+                Button("Quit") {
+                    services.quit()
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 8)
             }
-            .buttonStyle(.plain)
+            .frame(height: 26)
         }
         .font(.system(size: 11))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
-        .frame(height: 28)
     }
 }
 
