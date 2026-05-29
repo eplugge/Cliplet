@@ -67,7 +67,7 @@ struct ClipletPopoverView: View {
     /// scrollable when it exceeds this height.
     private func listHeight(clipCount: Int) -> CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-        let chromeHeight: CGFloat = 156 // header + footer + dividers
+        let chromeHeight: CGFloat = 130 // header + footer + dividers
         let edgeMargin: CGFloat = 40 // keep clear of the screen edges
         let available = screenHeight - chromeHeight - edgeMargin
 
@@ -81,38 +81,22 @@ struct ClipletPopoverView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Current clipboard")
-                .font(.system(size: 9, weight: .medium))
-                .textCase(.uppercase)
-                .foregroundStyle(.quaternary)
-
-            ZStack(alignment: .leading) {
-                if services.history.searchQuery.isEmpty {
-                    Text(services.currentClipboardPreview)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                }
-
-                TextField("Search clips", text: $services.history.searchQuery)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
-                    .focused($searchFocused)
-            }
-            .frame(height: 18)
-
+        ZStack(alignment: .leading) {
             if services.history.searchQuery.isEmpty {
-                Text("Type to filter · click a clip to copy it")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.quaternary)
+                Text("Type to filter. Click to copy.")
                     .lineLimit(1)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
+
+            TextField("Type to filter. Click to copy.", text: $services.history.searchQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
+                .focused($searchFocused)
         }
         .padding(.horizontal, 12)
-        .frame(height: 62)
+        .frame(height: 36)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

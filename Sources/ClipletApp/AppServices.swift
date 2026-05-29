@@ -29,7 +29,6 @@ final class AppServices: ObservableObject {
             setLaunchAtLogin(launchAtLogin)
         }
     }
-    @Published private(set) var currentClipboardPreview: String = "Clipboard is empty"
 
     let store: ClipStore
 
@@ -75,7 +74,6 @@ final class AppServices: ObservableObject {
             try? store.writePayload(data, filename: filename)
         }
 
-        currentClipboardPreview = clip.preview
         history.addOrUpdate(clip)
         persistQuietly()
     }
@@ -120,7 +118,6 @@ final class AppServices: ObservableObject {
         }
 
         monitor?.suppressNextChangeCount(pasteboard.changeCount)
-        currentClipboardPreview = clip.preview
         history.markUsed(clip.id, at: Date())
         persistQuietly()
         pasteIfEnabled()
