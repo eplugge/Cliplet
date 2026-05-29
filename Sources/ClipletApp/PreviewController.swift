@@ -5,8 +5,17 @@ import QuickLookUI
 @MainActor
 final class PreviewController: NSObject, @preconcurrency QLPreviewPanelDataSource {
     private var previewURL: URL?
+    private var closeObserver: NSObjectProtocol?
 
-    func preview(clip: Clip, storeRootDirectory: URL) {
+    /// Called with `true` when the Quick Look panel is shown and `false` when it closes,
+    /// so the popover can stay open (and not dismiss itself) for the duration.
+    var onVisibilityChanged: ((Bool) -> Void)?
+
+    var isVisible: Bool {
+        QLPreviewPanel.sharedPreviewPanelExists() && QLPreviewPanel.shared().isVisible
+    }
+
+    func show(clip: Clip, storeRootDirectory: URL) {
         switch clip.payload {
         case .fileReference(let url):
             previewURL = url
@@ -29,12 +38,40 @@ final class PreviewController: NSObject, @preconcurrency QLPreviewPanelDataSourc
             return
         }
 
+        // Activate first so the panel can hold key focus, and tell the popover to stay
+        // open BEFORE the panel takes key (otherwise a transient popover dismisses itself).
+        NSApp.activate(ignoringOtherApps: true)
+        onVisibilityChanged?(true)
+
         panel.dataSource = self
         panel.reloadData()
-        panel.level = .floating
-        panel.setFrame(NSRect(x: 0, y: 0, width: 720, height: 520), display: false)
-        panel.center()
         panel.makeKeyAndOrderFront(nil)
+        observeClose(of: panel)
+    }
+
+    func hide() {
+        guard isVisible else { return }
+        QLPreviewPanel.shared().close()
+    }
+
+    private func observeClose(of panel: QLPreviewPanel) {
+        if let closeObserver {
+            NotificationCenter.default.removeObserver(closeObserver)
+        }
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: panel,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let closeObserver = self.closeObserver {
+                    NotificationCenter.default.removeObserver(closeObserver)
+                    self.closeObserver = nil
+                }
+                self.onVisibilityChanged?(false)
+            }
+        }
     }
 
     private func temporaryTextFile(contents: String, id: UUID) -> URL? {

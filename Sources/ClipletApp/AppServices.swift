@@ -35,6 +35,14 @@ final class AppServices: ObservableObject {
     /// on selection and any auto-paste lands in the right app (not Cliplet's search field).
     var dismissAndReturnFocus: (() -> Void)?
 
+    /// Set by MenuBarController: keep the popover open (non-dismissing) while the Quick Look
+    /// preview is up, and restore normal transient dismissal when it closes.
+    var setPopoverPersistent: ((Bool) -> Void)?
+
+    /// Set to a clip id when keyboard navigation should scroll that row into view. Hover
+    /// selection deliberately leaves this untouched, so the mouse never triggers a scroll.
+    @Published var scrollTargetID: UUID?
+
     let store: ClipStore
 
     private let storeRootDirectory: URL
@@ -43,9 +51,6 @@ final class AppServices: ObservableObject {
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
-    // The row currently under the mouse. Deliberately NOT @Published: hover updates
-    // must not trigger a re-render. Read only when a key command fires.
-    private var hoveredClipID: UUID?
 
     private static let settingsKey = "Cliplet.settings"
     private static let exclusionsKey = "Cliplet.exclusions"
@@ -67,6 +72,10 @@ final class AppServices: ObservableObject {
 
         let loadedClips = (try? store.load()) ?? []
         self.history = HistoryModel(settings: storedSettings, clips: loadedClips)
+
+        previewController.onVisibilityChanged = { [weak self] visible in
+            self?.setPopoverPersistent?(visible)
+        }
 
         configureMonitor()
         startPolling()
@@ -134,7 +143,7 @@ final class AppServices: ObservableObject {
     }
 
     func preview(_ clip: Clip) {
-        previewController.preview(clip: clip, storeRootDirectory: storeRootDirectory)
+        previewController.show(clip: clip, storeRootDirectory: storeRootDirectory)
     }
 
     func togglePinned(_ clip: Clip) {
@@ -187,12 +196,15 @@ final class AppServices: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func hover(_ id: UUID, isHovering: Bool) {
-        if isHovering {
-            hoveredClipID = id
-        } else if hoveredClipID == id {
-            hoveredClipID = nil
-        }
+    /// Hovering a row makes it the selection (so the mouse and keyboard share one
+    /// highlight and arrows continue from the hovered row). Does NOT scroll — only
+    /// keyboard navigation scrolls — so hovering never yanks the list around.
+    func hoverSelect(_ id: UUID) {
+        history.selectClip(id)
+    }
+
+    private func requestScrollToSelection() {
+        scrollTargetID = history.selectedClipID
     }
 
     func persistQuietly() {
@@ -213,16 +225,22 @@ final class AppServices: ObservableObject {
         switch command {
         case .moveUp:
             history.moveSelection(offset: -1)
+            requestScrollToSelection()
         case .moveDown:
             history.moveSelection(offset: 1)
+            requestScrollToSelection()
         case .pageUp:
             history.moveSelection(offset: -settings.visibleRowLimit)
+            requestScrollToSelection()
         case .pageDown:
             history.moveSelection(offset: settings.visibleRowLimit)
+            requestScrollToSelection()
         case .home:
             history.moveSelectionToStart()
+            requestScrollToSelection()
         case .end:
             history.moveSelectionToEnd()
+            requestScrollToSelection()
         case .enter:
             restoreSelectedClip()
         case .preview:
@@ -367,8 +385,11 @@ final class AppServices: ObservableObject {
     }
 
     private func previewSelectedClip() {
-        guard let clip = previewTargetClip else { return }
-        preview(clip)
+        if previewController.isVisible {
+            previewController.hide()
+        } else if let clip = selectedClip {
+            previewController.show(clip: clip, storeRootDirectory: storeRootDirectory)
+        }
     }
 
     private func deleteSelectedClip() {
@@ -422,21 +443,6 @@ final class AppServices: ObservableObject {
 
     private var selectedClip: Clip? {
         guard let id = history.selectedClipID else { return nil }
-        return history.filteredClips.first { $0.id == id }
-    }
-
-    /// Keyboard actions (preview, delete) act on the row under the mouse when there is
-    /// one, otherwise the keyboard-selected row.
-    private var targetClipID: UUID? {
-        if let hoveredClipID,
-           history.filteredClips.contains(where: { $0.id == hoveredClipID }) {
-            return hoveredClipID
-        }
-        return history.selectedClipID
-    }
-
-    private var previewTargetClip: Clip? {
-        guard let id = targetClipID else { return nil }
         return history.filteredClips.first { $0.id == id }
     }
 

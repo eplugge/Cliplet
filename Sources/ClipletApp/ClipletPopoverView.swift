@@ -42,9 +42,9 @@ struct ClipletPopoverView: View {
                     }
                 }
                 .frame(height: listHeight(clipCount: visibleClips.count))
-                // Only fires on keyboard-driven selection changes now that hover is
-                // decoupled, so the list no longer yanks itself around under the mouse.
-                .onChange(of: services.history.selectedClipID) { _, id in
+                // Scrolls only on keyboard navigation (which sets scrollTargetID); hover
+                // selection leaves it untouched, so the list never yanks under the mouse.
+                .onChange(of: services.scrollTargetID) { _, id in
                     guard let id else { return }
                     proxy.scrollTo(id, anchor: .center)
                 }
@@ -128,7 +128,6 @@ private struct ClipRowView: View {
     var index: Int
     var clip: Clip
     var selected: Bool
-    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -149,25 +148,15 @@ private struct ClipRowView: View {
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.height)
-        .background(rowBackground)
+        .background(selected ? Color.accentColor.opacity(0.18) : Color.clear)
         // Make the whole row width hit-test for hover and taps, not just the text.
         .contentShape(Rectangle())
-        // Hover highlights this row locally (no model churn, no scroll) and records
-        // it as the target for Space-to-preview via a non-published id.
+        // Hovering a row selects it, so the mouse and keyboard share one highlight and
+        // arrows continue from the hovered row. Selection changes don't scroll (only
+        // keyboard navigation does), so this never yanks the list under the mouse.
         .onHover { hovering in
-            isHovered = hovering
-            services.hover(clip.id, isHovering: hovering)
+            if hovering { services.hoverSelect(clip.id) }
         }
-    }
-
-    private var rowBackground: Color {
-        if selected {
-            return Color.accentColor.opacity(0.18)
-        }
-        if isHovered {
-            return Color.primary.opacity(0.08)
-        }
-        return Color.clear
     }
 
     private var isBinary: Bool {

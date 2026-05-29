@@ -22,6 +22,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         services.dismissAndReturnFocus = { [weak self] in
             self?.dismissAndReturnFocus()
         }
+        services.setPopoverPersistent = { [weak self] persistent in
+            self?.setPopoverPersistent(persistent)
+        }
     }
 
     private func configureStatusItem() {
@@ -57,6 +60,20 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private func dismissAndReturnFocus() {
         popover.performClose(nil)
         previousApp?.activate()
+    }
+
+    private func setPopoverPersistent(_ persistent: Bool) {
+        if persistent {
+            // While Quick Look is up, stop the popover dismissing itself when QL takes key.
+            popover.behavior = .applicationDefined
+        } else {
+            // QL closed: take key focus back BEFORE restoring transient dismissal, so the
+            // popover stays open (a transient popover dismisses itself if it isn't key when
+            // the behavior is applied).
+            NSApp.activate(ignoringOtherApps: true)
+            popover.contentViewController?.view.window?.makeKey()
+            popover.behavior = .transient
+        }
     }
 
     private func configureKeyMonitor() {
