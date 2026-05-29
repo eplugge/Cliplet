@@ -53,17 +53,16 @@ public enum ClipClassifier {
             }
         }
 
-        if let textRepresentation = item.representations.first(where: isTextRepresentation),
-           let text = String(data: textRepresentation.data, encoding: .utf8) {
+        if let decoded = firstDecodableText(in: item.representations) {
             return makeClip(
                 item: item,
                 kind: .text,
-                preview: singleLinePreview(for: text),
+                preview: singleLinePreview(for: decoded.text),
                 contentType: "public.utf8-plain-text",
-                filename: textRepresentation.filename,
-                byteSize: textRepresentation.data.count,
-                contentHash: contentHash(for: textRepresentation.data),
-                payload: .inlineText(text)
+                filename: decoded.representation.filename,
+                byteSize: decoded.representation.data.count,
+                contentHash: contentHash(for: decoded.representation.data),
+                payload: .inlineText(decoded.text)
             )
         }
 
@@ -160,6 +159,30 @@ public enum ClipClassifier {
             isPinned: false,
             payload: payload
         )
+    }
+
+    /// Returns the first text representation that actually decodes to non-empty text,
+    /// using an encoding appropriate to its type. Picking by type alone is not enough:
+    /// `public.utf16-external-plain-text` matches the text check but its bytes are UTF-16,
+    /// so decoding them as UTF-8 fails — we must keep looking instead of giving up.
+    private static func firstDecodableText(
+        in representations: [RawRepresentation]
+    ) -> (representation: RawRepresentation, text: String)? {
+        for representation in representations where isTextRepresentation(representation) {
+            if let text = decodeText(representation), !text.isEmpty {
+                return (representation, text)
+            }
+        }
+        return nil
+    }
+
+    private static func decodeText(_ representation: RawRepresentation) -> String? {
+        if representation.typeIdentifier.lowercased().contains("utf16") {
+            return String(data: representation.data, encoding: .utf16)
+                ?? String(data: representation.data, encoding: .utf8)
+        }
+        return String(data: representation.data, encoding: .utf8)
+            ?? String(data: representation.data, encoding: .utf16)
     }
 
     private static func isTextRepresentation(_ representation: RawRepresentation) -> Bool {

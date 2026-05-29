@@ -32,6 +32,61 @@ final class ClipClassifierTests: XCTestCase {
         XCTAssertEqual(clip.payload, .inlineText(text))
     }
 
+    func testRichTextWithUTF16FirstStillClassifiesAsText() {
+        // Mirrors copying from apps like Xcode's console: an RTF rep, a UTF-16 plain-text
+        // rep (whose bytes must NOT be decoded as UTF-8), then a UTF-8 plain-text rep.
+        // The classifier must land on real text, not the opaque "public.rtf" fallback.
+        let now = Date(timeIntervalSince1970: 100)
+        let text = "Unable to obtain a task name port right for pid 605"
+        let item = ClipClassifier.RawItem(
+            representations: [
+                .init(typeIdentifier: "public.rtf", data: Data("{\\rtf1 x}".utf8), filename: nil),
+                .init(
+                    typeIdentifier: "public.utf16-external-plain-text",
+                    data: text.data(using: .utf16)!,
+                    filename: nil
+                ),
+                .init(
+                    typeIdentifier: "public.utf8-plain-text",
+                    data: Data(text.utf8),
+                    filename: nil
+                )
+            ],
+            sourceAppBundleID: "com.apple.dt.Xcode",
+            sourceAppName: "Xcode",
+            now: now
+        )
+
+        let clip = ClipClassifier.classify(item, settings: .defaults)
+
+        XCTAssertEqual(clip.kind, .text)
+        XCTAssertEqual(clip.preview, text)
+        XCTAssertEqual(clip.payload, .inlineText(text))
+        XCTAssertEqual(clip.contentType, "public.utf8-plain-text")
+    }
+
+    func testUTF16OnlyTextRepresentationDecodesAsText() {
+        let now = Date(timeIntervalSince1970: 100)
+        let text = "café — résumé"
+        let item = ClipClassifier.RawItem(
+            representations: [
+                .init(
+                    typeIdentifier: "public.utf16-external-plain-text",
+                    data: text.data(using: .utf16)!,
+                    filename: nil
+                )
+            ],
+            sourceAppBundleID: nil,
+            sourceAppName: nil,
+            now: now
+        )
+
+        let clip = ClipClassifier.classify(item, settings: .defaults)
+
+        XCTAssertEqual(clip.kind, .text)
+        XCTAssertEqual(clip.payload, .inlineText(text))
+    }
+
     func testOversizedImageUsesMetadataOnlyAndExpectedPreview() {
         var settings = ClipSettings.defaults
         settings.maximumPersistedClipBytes = 4
