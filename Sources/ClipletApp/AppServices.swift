@@ -425,14 +425,19 @@ final class AppServices: ObservableObject {
         return history.filteredClips.first { $0.id == id }
     }
 
-    /// Space previews the row under the mouse when there is one, otherwise the
-    /// keyboard-selected row.
-    private var previewTargetClip: Clip? {
+    /// Keyboard actions (preview, delete) act on the row under the mouse when there is
+    /// one, otherwise the keyboard-selected row.
+    private var targetClipID: UUID? {
         if let hoveredClipID,
-           let clip = history.filteredClips.first(where: { $0.id == hoveredClipID }) {
-            return clip
+           history.filteredClips.contains(where: { $0.id == hoveredClipID }) {
+            return hoveredClipID
         }
-        return selectedClip
+        return history.selectedClipID
+    }
+
+    private var previewTargetClip: Clip? {
+        guard let id = targetClipID else { return nil }
+        return history.filteredClips.first { $0.id == id }
     }
 
     private func saveSettings() {

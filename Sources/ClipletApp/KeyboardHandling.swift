@@ -31,7 +31,7 @@ enum ClipletKeyCommand: Equatable {
         case 36, 76: return .enter
         case 49: return .preview
         case 53: return .close
-        case 51, 117: return .delete
+        case 117: return .delete // forward-delete removes a clip; backspace (51) edits search
         default: return nil
         }
     }
