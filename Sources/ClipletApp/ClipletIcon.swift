@@ -2,6 +2,19 @@ import AppKit
 
 enum ClipletIcon {
     static func menuBarImage() -> NSImage {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        if let symbol = NSImage(
+            systemSymbolName: "paperclip",
+            accessibilityDescription: "Cliplet"
+        )?.withSymbolConfiguration(configuration) {
+            symbol.isTemplate = true
+            return symbol
+        }
+
+        return fallbackImage()
+    }
+
+    private static func fallbackImage() -> NSImage {
         let image = NSImage(size: NSSize(width: 22, height: 22))
         image.lockFocus()
 
@@ -9,7 +22,6 @@ enum ClipletIcon {
         path.lineWidth = 1.8
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
-
         path.move(to: NSPoint(x: 6.4, y: 9.0))
         path.curve(
             to: NSPoint(x: 13.6, y: 16.2),
@@ -27,16 +39,8 @@ enum ClipletIcon {
             controlPoint2: NSPoint(x: 12.1, y: 3.5)
         )
 
-        let inner = NSBezierPath()
-        inner.lineWidth = 1.8
-        inner.lineCapStyle = .round
-        inner.lineJoinStyle = .round
-        inner.move(to: NSPoint(x: 8.6, y: 10.7))
-        inner.line(to: NSPoint(x: 15.5, y: 17.2))
-
         NSColor.labelColor.setStroke()
         path.stroke()
-        inner.stroke()
 
         image.unlockFocus()
         image.isTemplate = true
