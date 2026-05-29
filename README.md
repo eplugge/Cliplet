@@ -23,12 +23,13 @@
   search and re-paste any of it from a keyboard-driven menu-bar popover.</em>
 </p>
 
-> [!TIP]
-> **Want it in motion?** Open [`demo/Cliplet Demo.html`](demo/Cliplet%20Demo.html) in any browser for
-> the animated walkthrough (two scenes, light + dark, playback controls). Screen-record it to drop a
-> GIF in right here.
-> <!-- To embed a GIF: record the demo, save as docs/images/demo.gif, and replace this block with:
->      <p align="center"><img src="docs/images/demo.gif" alt="Cliplet demo" width="760"></p> -->
+<p align="center">
+  <img src="docs/images/demo.gif" alt="Cliplet — search, Quick Look, and paste from the menu bar" width="760">
+</p>
+
+<p align="center">
+  <sub><em>Prefer it interactive? Open <a href="demo/Cliplet%20Demo.html"><code>demo/Cliplet&nbsp;Demo.html</code></a> in any browser.</em></sub>
+</p>
 
 ---
 
