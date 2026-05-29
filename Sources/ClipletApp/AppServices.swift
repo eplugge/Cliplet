@@ -23,12 +23,6 @@ final class AppServices: ObservableObject {
             monitor?.excludedApps = exclusions
         }
     }
-    @Published var excludedAppInput: String = "" {
-        didSet {
-            guard !isUpdatingExcludedAppInput else { return }
-            exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
-        }
-    }
     @Published var launchAtLogin: Bool {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: Self.launchAtLoginKey)
@@ -45,7 +39,6 @@ final class AppServices: ObservableObject {
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
-    private var isUpdatingExcludedAppInput = false
 
     private static let settingsKey = "Cliplet.settings"
     private static let exclusionsKey = "Cliplet.exclusions"
@@ -67,7 +60,6 @@ final class AppServices: ObservableObject {
 
         let loadedClips = (try? store.load()) ?? []
         self.history = HistoryModel(settings: storedSettings, clips: loadedClips)
-        self.excludedAppInput = storedExclusions.bundleIDs.joined(separator: "\n")
 
         configureMonitor()
         startPolling()
@@ -167,7 +159,7 @@ final class AppServices: ObservableObject {
                 .environmentObject(self)
         )
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -233,9 +225,21 @@ final class AppServices: ObservableObject {
         }
     }
 
-    func addExcludedBundleIDFromInput() {
-        exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
-        syncExcludedAppInput()
+    func addExcludedApp(bundleID: String) {
+        var updated = exclusions
+        updated.add(bundleID: bundleID)
+        exclusions = updated
+    }
+
+    func addExcludedApp(at url: URL) {
+        guard let bundleID = AppBundle.bundleID(forApplicationAt: url) else { return }
+        addExcludedApp(bundleID: bundleID)
+    }
+
+    func removeExcludedApp(bundleID: String) {
+        var updated = exclusions
+        updated.remove(bundleID: bundleID)
+        exclusions = updated
     }
 
     private func configureMonitor() {
@@ -415,7 +419,6 @@ final class AppServices: ObservableObject {
     private func saveExclusions() {
         guard let data = try? JSONEncoder().encode(exclusions) else { return }
         UserDefaults.standard.set(data, forKey: Self.exclusionsKey)
-        syncExcludedAppInput()
     }
 
     private static func loadExclusions() -> ExcludedApps {
@@ -426,17 +429,4 @@ final class AppServices: ObservableObject {
         return exclusions
     }
 
-    private func syncExcludedAppInput() {
-        let value = exclusions.bundleIDs.joined(separator: "\n")
-        guard excludedAppInput != value else { return }
-        isUpdatingExcludedAppInput = true
-        excludedAppInput = value
-        isUpdatingExcludedAppInput = false
-    }
-}
-
-private extension String {
-    func lines() -> [String] {
-        components(separatedBy: .newlines)
-    }
 }
