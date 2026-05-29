@@ -31,9 +31,9 @@ final class AppServices: ObservableObject {
     }
 
     /// Set by MenuBarController: dismiss the popover and re-activate whichever app was
-    /// frontmost before it opened, so an auto-paste lands there and not in Cliplet's
-    /// own search field.
-    var preparePasteTarget: (() -> Void)?
+    /// frontmost before it opened. Called whenever a clip is restored, so the menu closes
+    /// on selection and any auto-paste lands in the right app (not Cliplet's search field).
+    var dismissAndReturnFocus: (() -> Void)?
 
     let store: ClipStore
 
@@ -128,6 +128,8 @@ final class AppServices: ObservableObject {
         monitor?.suppressNextChangeCount(pasteboard.changeCount)
         history.markUsed(clip.id, at: Date())
         persistQuietly()
+        // Close the popover (and hand focus back) on every selection, then paste if enabled.
+        dismissAndReturnFocus?()
         pasteIfEnabled()
     }
 
@@ -389,11 +391,8 @@ final class AppServices: ObservableObject {
             return
         }
 
-        // Close the popover and hand focus back to the previously-frontmost app first,
-        // otherwise the synthetic ⌘V lands in Cliplet's own search field.
-        preparePasteTarget?()
-
-        // Give the focus change a moment to settle before posting the keystroke.
+        // restore() has already dismissed the popover and re-activated the previous app;
+        // give that focus change a moment to settle before posting the keystroke.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             Self.postCommandV()
         }

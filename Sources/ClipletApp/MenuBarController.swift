@@ -19,8 +19,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         configurePopover()
         configureKeyMonitor()
 
-        services.preparePasteTarget = { [weak self] in
-            self?.dismissForPaste()
+        services.dismissAndReturnFocus = { [weak self] in
+            self?.dismissAndReturnFocus()
         }
     }
 
@@ -54,7 +54,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
     }
 
-    private func dismissForPaste() {
+    private func dismissAndReturnFocus() {
         popover.performClose(nil)
         previousApp?.activate()
     }
