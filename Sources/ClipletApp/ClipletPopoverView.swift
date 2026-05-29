@@ -1,3 +1,4 @@
+import AppKit
 import ClipletCore
 import SwiftUI
 
@@ -41,7 +42,7 @@ struct ClipletPopoverView: View {
                         }
                     }
                 }
-                .frame(height: CGFloat(services.history.settings.visibleRowLimit) * ClipRowView.height)
+                .frame(height: listHeight)
                 .onChange(of: services.history.selectedClipID) { _, id in
                     guard let id else { return }
                     proxy.scrollTo(id, anchor: .center)
@@ -57,6 +58,25 @@ struct ClipletPopoverView: View {
             searchFocused = true
             services.history.moveSelectionToStart()
         }
+    }
+
+    /// Height of the scrollable clip list: sized to the clips that exist, capped by
+    /// the user's visible-row preference and by how much vertical room the screen has,
+    /// so the popover never shows empty space or runs off-screen. The full list stays
+    /// scrollable when it exceeds this height.
+    private var listHeight: CGFloat {
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        let chromeHeight: CGFloat = 104 // header + footer + dividers
+        let edgeMargin: CGFloat = 40 // keep clear of the screen edges
+        let available = screenHeight - chromeHeight - edgeMargin
+
+        let rows = PopoverLayout.visibleRowCount(
+            clipCount: services.history.filteredClips.count,
+            visibleRowLimit: services.history.settings.visibleRowLimit,
+            rowHeight: ClipRowView.height,
+            availableHeight: available
+        )
+        return CGFloat(rows) * ClipRowView.height
     }
 
     private var header: some View {
