@@ -51,6 +51,9 @@ final class AppServices: ObservableObject {
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
+    // Pointer location captured at the last keyboard navigation; used to distinguish a
+    // real mouse move from a hover event fired by the list scrolling under the pointer.
+    private var keyNavMouseAnchor: NSPoint?
 
     private static let settingsKey = "Cliplet.settings"
     private static let exclusionsKey = "Cliplet.exclusions"
@@ -199,12 +202,26 @@ final class AppServices: ObservableObject {
     /// Hovering a row makes it the selection (so the mouse and keyboard share one
     /// highlight and arrows continue from the hovered row). Does NOT scroll — only
     /// keyboard navigation scrolls — so hovering never yanks the list around.
+    ///
+    /// Ignored when it fires without the mouse having actually moved: keyboard
+    /// navigation scrolls the list under a stationary pointer, which makes a different
+    /// row pass beneath it and fires onHover — accepting that would hijack the keyboard
+    /// selection back to the mouse position.
     func hoverSelect(_ id: UUID) {
+        let location = NSEvent.mouseLocation
+        if let anchor = keyNavMouseAnchor,
+           hypot(location.x - anchor.x, location.y - anchor.y) < 1 {
+            return
+        }
+        keyNavMouseAnchor = nil
         history.selectClip(id)
     }
 
     private func requestScrollToSelection() {
         scrollTargetID = history.selectedClipID
+        // Remember where the pointer was so hover events caused purely by the resulting
+        // scroll (not by the user moving the mouse) are ignored until a real move.
+        keyNavMouseAnchor = NSEvent.mouseLocation
     }
 
     func persistQuietly() {
