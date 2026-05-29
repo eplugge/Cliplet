@@ -3,6 +3,7 @@ import ClipletCore
 import Combine
 import Foundation
 import ServiceManagement
+import SwiftUI
 
 @MainActor
 final class AppServices: ObservableObject {
@@ -42,6 +43,7 @@ final class AppServices: ObservableObject {
     private let previewController: PreviewController
     private var monitor: ClipboardMonitor?
     private var pollTimer: Timer?
+    private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
     private var isUpdatingExcludedAppInput = false
 
@@ -153,7 +155,33 @@ final class AppServices: ObservableObject {
 
     func showSettings() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+
+        if let settingsWindowController {
+            settingsWindowController.showWindow(nil)
+            settingsWindowController.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let hostingView = NSHostingView(
+            rootView: SettingsView()
+                .environmentObject(self)
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Cliplet Preferences"
+        window.contentView = hostingView
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.setFrameAutosaveName("ClipletPreferences")
+
+        let controller = NSWindowController(window: window)
+        settingsWindowController = controller
+        controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
     }
 
     func quit() {
