@@ -7,7 +7,11 @@ struct ClipletPopoverView: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Compute the filtered+sorted list once per render; it is read by both the
+        // row list and the height calculation, and re-sorting is not free.
+        let visibleClips = services.history.filteredClips
+
+        return VStack(spacing: 0) {
             header
 
             Divider()
@@ -15,14 +19,9 @@ struct ClipletPopoverView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(services.history.filteredClips.enumerated()), id: \.element.id) { index, clip in
+                        ForEach(Array(visibleClips.enumerated()), id: \.element.id) { index, clip in
                             ClipRowView(index: index, clip: clip, selected: clip.id == services.history.selectedClipID)
                                 .id(clip.id)
-                                .onHover { hovering in
-                                    if hovering {
-                                        services.select(clip)
-                                    }
-                                }
                                 .onTapGesture {
                                     services.restore(clip)
                                 }
@@ -42,7 +41,9 @@ struct ClipletPopoverView: View {
                         }
                     }
                 }
-                .frame(height: listHeight)
+                .frame(height: listHeight(clipCount: visibleClips.count))
+                // Only fires on keyboard-driven selection changes now that hover is
+                // decoupled, so the list no longer yanks itself around under the mouse.
                 .onChange(of: services.history.selectedClipID) { _, id in
                     guard let id else { return }
                     proxy.scrollTo(id, anchor: .center)
@@ -64,14 +65,14 @@ struct ClipletPopoverView: View {
     /// the user's visible-row preference and by how much vertical room the screen has,
     /// so the popover never shows empty space or runs off-screen. The full list stays
     /// scrollable when it exceeds this height.
-    private var listHeight: CGFloat {
+    private func listHeight(clipCount: Int) -> CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-        let chromeHeight: CGFloat = 142 // header + footer + dividers
+        let chromeHeight: CGFloat = 156 // header + footer + dividers
         let edgeMargin: CGFloat = 40 // keep clear of the screen edges
         let available = screenHeight - chromeHeight - edgeMargin
 
         let rows = PopoverLayout.visibleRowCount(
-            clipCount: services.history.filteredClips.count,
+            clipCount: clipCount,
             visibleRowLimit: services.history.settings.visibleRowLimit,
             rowHeight: ClipRowView.height,
             availableHeight: available
@@ -102,9 +103,16 @@ struct ClipletPopoverView: View {
                     .focused($searchFocused)
             }
             .frame(height: 18)
+
+            if services.history.searchQuery.isEmpty {
+                Text("Type to filter · click a clip to copy it")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.quaternary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, 12)
-        .frame(height: 48)
+        .frame(height: 62)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -135,6 +143,7 @@ private struct ClipRowView: View {
     var index: Int
     var clip: Clip
     var selected: Bool
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -153,8 +162,24 @@ private struct ClipRowView: View {
             }
         }
         .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.height)
-        .background(selected ? Color.accentColor.opacity(0.18) : Color.clear)
+        .background(rowBackground)
+        // Make the whole row width hit-test for hover and taps, not just the text.
+        .contentShape(Rectangle())
+        // Hover only highlights this row locally — it does not touch the shared
+        // model, so it never triggers a re-filter/re-sort or a scroll.
+        .onHover { isHovered = $0 }
+    }
+
+    private var rowBackground: Color {
+        if selected {
+            return Color.accentColor.opacity(0.18)
+        }
+        if isHovered {
+            return Color.primary.opacity(0.08)
+        }
+        return Color.clear
     }
 
     private var isBinary: Bool {
