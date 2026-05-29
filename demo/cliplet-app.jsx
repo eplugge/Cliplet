@@ -175,16 +175,16 @@ function App() {
 
     /* ----------- SCENE 1: search → quick look → paste ----------- */
     async function sceneA() {
-      await caption("Scene 1 / 2", "Everything you copy — kept and searchable");
+      await caption("","Everything you copy — kept and searchable");
       await wait(900);
-      await caption("Scene 1 / 2", "Click the menu-bar icon");
+      await caption("","Click the menu-bar icon");
       await moveTo(() => tip(center('[data-hit="clip-icon"]')), 800);
       await wait(120);
       await click();
       merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
       await wait(750);
 
-      await caption("Scene 1 / 2", "Type to filter");
+      await caption("","Type to filter");
       await moveTo(() => tip(center('[data-hit="search"]')), 520);
       await click();
       await type("screen", 100);
@@ -194,7 +194,7 @@ function App() {
       merge({ selectedId: img.id });
       await wait(550);
 
-      await caption("Scene 1 / 2", "Space → Quick Look preview");
+      await caption("","Space → Quick Look preview");
       await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 420);
       await key("space");
       merge({ quickLookId: img.id });
@@ -202,13 +202,13 @@ function App() {
       merge({ quickLookId: null });
       await wait(350);
 
-      await caption("Scene 1 / 2", "Click to copy it back");
+      await caption("","Click to copy it back");
       await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 380);
       await click();
       merge({ popoverOpen: false, clipActive: false, search: "" });
       await wait(550);
 
-      await caption("Scene 1 / 2", "Paste anywhere — ⌘V");
+      await caption("","Paste anywhere — ⌘V");
       await moveTo(() => tip(center('[data-hit="chat-field"]')), 800);
       await click();
       await wait(180);
@@ -223,14 +223,14 @@ function App() {
 
     /* ----------- SCENE 2: pin + delete ----------- */
     async function sceneB() {
-      await caption("Scene 2 / 2", "Open Cliplet");
+      await caption("","Open Cliplet");
       await moveTo(() => tip(center('[data-hit="clip-icon"]')), 800);
       await wait(100);
       await click();
       merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
       await wait(700);
 
-      await caption("Scene 2 / 2", "Pin the clips you reuse");
+      await caption("","Pin the clips you reuse");
       const brew = find("brew install");
       await moveTo(() => tip(center('[data-hit="row-' + brew.id + '"]')), 520);
       merge({ selectedId: brew.id });
@@ -248,7 +248,7 @@ function App() {
       merge({ flashId: null });
       await wait(700);
 
-      await caption("Scene 2 / 2", "Delete what you don’t — ⌦ twice");
+      await caption("","Delete what you don’t — ⌦ twice");
       const junk = find("#0A5AD0");
       merge({ selectedId: junk.id });
       await moveTo(() => tip(center('[data-hit="row-' + junk.id + '"]')), 480);
@@ -260,7 +260,7 @@ function App() {
       setRef.current((prev) => ({ ...prev, clips: prev.clips.filter((c) => c.id !== junk.id), deleteConfirmId: null, selectedId: prev.clips[0]?.id }));
       await wait(950);
 
-      await caption("Scene 2 / 2", "Esc to close");
+      await caption("","Esc to close");
       await key("esc");
       merge({ popoverOpen: false, clipActive: false });
       await wait(1300);
