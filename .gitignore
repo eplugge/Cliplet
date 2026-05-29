@@ -4,3 +4,4 @@ build/
 dist/
 *.iconset
 docs/superpowers/
+.swiftpm/
