@@ -15,10 +15,6 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/popover.png" alt="Cliplet popover open in the macOS menu bar, showing recent clips" width="760">
-</p>
-
-<p align="center">
   <em>Cliplet quietly remembers what you copy — text, links, images, files — and lets you<br>
   search and re-paste any of it from a keyboard-driven menu-bar popover.</em>
 </p>
@@ -33,46 +29,6 @@
 
 ---
 
-## How it works
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/search.png" alt="Typing to filter the clip history" width="100%"><br>
-      <strong>Type to filter.</strong> Start typing the moment the popover opens — the list narrows to
-      what you mean.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/quick-look.png" alt="Quick Look preview of an image clip" width="100%"><br>
-      <strong>Space to preview.</strong> Quick Look any clip — including images and text — without
-      leaving the keyboard.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/paste.png" alt="Pasting a copied image into a chat window" width="100%"><br>
-      <strong>Click to copy, ⌘V to paste.</strong> The clip goes back on the pasteboard, ready for the
-      app you were just in.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/pin.png" alt="A pinned clip moved to the top of the list" width="100%"><br>
-      <strong>Pin what you reuse.</strong> Pinned clips (•) stick to the top; used clips bubble up.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img src="docs/images/delete.png" alt="Confirming deletion of a clip" width="100%"><br>
-      <strong>Prune in place.</strong> Forward-delete removes a clip — press twice to confirm.
-    </td>
-    <td width="50%" valign="top">
-      <img src="docs/images/popover-light.png" alt="Cliplet in macOS light mode" width="100%"><br>
-      <strong>Light &amp; dark.</strong> Native materials follow your system appearance.
-    </td>
-  </tr>
-</table>
-
----
-
 ## Features
 
 - **Lightweight menu-bar app** — no Dock icon, native SwiftUI/AppKit.
@@ -82,6 +38,7 @@
 - **Auto-paste (optional)** — paste straight into the previous app (needs Accessibility permission).
 - **Per-app exclusions** — secrets from chosen apps are never captured.
 - **Tunable** — configurable history size, visible rows, and max clip size.
+- **Light & dark** — native materials follow your system appearance.
 
 ## Install
 
