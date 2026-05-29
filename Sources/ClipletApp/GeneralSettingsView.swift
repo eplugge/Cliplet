@@ -10,11 +10,13 @@ struct GeneralSettingsView: View {
                 Toggle("Move used clip to top", isOn: $services.settings.moveSelectedClipToTop)
             }
 
+            #if !APPSTORE
             Section {
                 Toggle("Auto-paste after selection", isOn: $services.settings.autoPasteAfterSelection)
             } footer: {
                 Text("Requires Accessibility permission to send the paste keystroke.")
             }
+            #endif
 
             Section {
                 Stepper(
