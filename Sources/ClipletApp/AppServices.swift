@@ -23,19 +23,17 @@ final class AppServices: ObservableObject {
             monitor?.excludedApps = exclusions
         }
     }
-    @Published var excludedAppInput: String = "" {
-        didSet {
-            guard !isUpdatingExcludedAppInput else { return }
-            exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
-        }
-    }
     @Published var launchAtLogin: Bool {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: Self.launchAtLoginKey)
             setLaunchAtLogin(launchAtLogin)
         }
     }
-    @Published private(set) var currentClipboardPreview: String = "Clipboard is empty"
+
+    /// Set by MenuBarController: dismiss the popover and re-activate whichever app was
+    /// frontmost before it opened. Called whenever a clip is restored, so the menu closes
+    /// on selection and any auto-paste lands in the right app (not Cliplet's search field).
+    var dismissAndReturnFocus: (() -> Void)?
 
     let store: ClipStore
 
@@ -45,7 +43,9 @@ final class AppServices: ObservableObject {
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
-    private var isUpdatingExcludedAppInput = false
+    // The row currently under the mouse. Deliberately NOT @Published: hover updates
+    // must not trigger a re-render. Read only when a key command fires.
+    private var hoveredClipID: UUID?
 
     private static let settingsKey = "Cliplet.settings"
     private static let exclusionsKey = "Cliplet.exclusions"
@@ -67,7 +67,6 @@ final class AppServices: ObservableObject {
 
         let loadedClips = (try? store.load()) ?? []
         self.history = HistoryModel(settings: storedSettings, clips: loadedClips)
-        self.excludedAppInput = storedExclusions.bundleIDs.joined(separator: "\n")
 
         configureMonitor()
         startPolling()
@@ -83,7 +82,6 @@ final class AppServices: ObservableObject {
             try? store.writePayload(data, filename: filename)
         }
 
-        currentClipboardPreview = clip.preview
         history.addOrUpdate(clip)
         persistQuietly()
     }
@@ -128,9 +126,10 @@ final class AppServices: ObservableObject {
         }
 
         monitor?.suppressNextChangeCount(pasteboard.changeCount)
-        currentClipboardPreview = clip.preview
         history.markUsed(clip.id, at: Date())
         persistQuietly()
+        // Close the popover (and hand focus back) on every selection, then paste if enabled.
+        dismissAndReturnFocus?()
         pasteIfEnabled()
     }
 
@@ -167,7 +166,7 @@ final class AppServices: ObservableObject {
                 .environmentObject(self)
         )
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 360),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -188,8 +187,12 @@ final class AppServices: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func select(_ clip: Clip?) {
-        history.selectClip(clip?.id)
+    func hover(_ id: UUID, isHovering: Bool) {
+        if isHovering {
+            hoveredClipID = id
+        } else if hoveredClipID == id {
+            hoveredClipID = nil
+        }
     }
 
     func persistQuietly() {
@@ -233,9 +236,21 @@ final class AppServices: ObservableObject {
         }
     }
 
-    func addExcludedBundleIDFromInput() {
-        exclusions = ExcludedApps(bundleIDs: excludedAppInput.lines())
-        syncExcludedAppInput()
+    func addExcludedApp(bundleID: String) {
+        var updated = exclusions
+        updated.add(bundleID: bundleID)
+        exclusions = updated
+    }
+
+    func addExcludedApp(at url: URL) {
+        guard let bundleID = AppBundle.bundleID(forApplicationAt: url) else { return }
+        addExcludedApp(bundleID: bundleID)
+    }
+
+    func removeExcludedApp(bundleID: String) {
+        var updated = exclusions
+        updated.remove(bundleID: bundleID)
+        exclusions = updated
     }
 
     private func configureMonitor() {
@@ -352,7 +367,7 @@ final class AppServices: ObservableObject {
     }
 
     private func previewSelectedClip() {
-        guard let clip = selectedClip else { return }
+        guard let clip = previewTargetClip else { return }
         preview(clip)
     }
 
@@ -376,6 +391,14 @@ final class AppServices: ObservableObject {
             return
         }
 
+        // restore() has already dismissed the popover and re-activated the previous app;
+        // give that focus change a moment to settle before posting the keystroke.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            Self.postCommandV()
+        }
+    }
+
+    private static func postCommandV() {
         let source = CGEventSource(stateID: .hidSystemState)
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
@@ -402,6 +425,16 @@ final class AppServices: ObservableObject {
         return history.filteredClips.first { $0.id == id }
     }
 
+    /// Space previews the row under the mouse when there is one, otherwise the
+    /// keyboard-selected row.
+    private var previewTargetClip: Clip? {
+        if let hoveredClipID,
+           let clip = history.filteredClips.first(where: { $0.id == hoveredClipID }) {
+            return clip
+        }
+        return selectedClip
+    }
+
     private func saveSettings() {
         guard let data = try? JSONEncoder().encode(settings) else { return }
         UserDefaults.standard.set(data, forKey: Self.settingsKey)
@@ -415,7 +448,6 @@ final class AppServices: ObservableObject {
     private func saveExclusions() {
         guard let data = try? JSONEncoder().encode(exclusions) else { return }
         UserDefaults.standard.set(data, forKey: Self.exclusionsKey)
-        syncExcludedAppInput()
     }
 
     private static func loadExclusions() -> ExcludedApps {
@@ -426,17 +458,4 @@ final class AppServices: ObservableObject {
         return exclusions
     }
 
-    private func syncExcludedAppInput() {
-        let value = exclusions.bundleIDs.joined(separator: "\n")
-        guard excludedAppInput != value else { return }
-        isUpdatingExcludedAppInput = true
-        excludedAppInput = value
-        isUpdatingExcludedAppInput = false
-    }
-}
-
-private extension String {
-    func lines() -> [String] {
-        components(separatedBy: .newlines)
-    }
 }

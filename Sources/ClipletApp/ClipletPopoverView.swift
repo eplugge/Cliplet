@@ -1,3 +1,4 @@
+import AppKit
 import ClipletCore
 import SwiftUI
 
@@ -6,7 +7,11 @@ struct ClipletPopoverView: View {
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Compute the filtered+sorted list once per render; it is read by both the
+        // row list and the height calculation, and re-sorting is not free.
+        let visibleClips = services.history.filteredClips
+
+        return VStack(spacing: 0) {
             header
 
             Divider()
@@ -14,14 +19,9 @@ struct ClipletPopoverView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(services.history.filteredClips.enumerated()), id: \.element.id) { index, clip in
+                        ForEach(Array(visibleClips.enumerated()), id: \.element.id) { index, clip in
                             ClipRowView(index: index, clip: clip, selected: clip.id == services.history.selectedClipID)
                                 .id(clip.id)
-                                .onHover { hovering in
-                                    if hovering {
-                                        services.select(clip)
-                                    }
-                                }
                                 .onTapGesture {
                                     services.restore(clip)
                                 }
@@ -41,7 +41,9 @@ struct ClipletPopoverView: View {
                         }
                     }
                 }
-                .frame(height: CGFloat(services.history.settings.visibleRowLimit) * ClipRowView.height)
+                .frame(height: listHeight(clipCount: visibleClips.count))
+                // Only fires on keyboard-driven selection changes now that hover is
+                // decoupled, so the list no longer yanks itself around under the mouse.
                 .onChange(of: services.history.selectedClipID) { _, id in
                     guard let id else { return }
                     proxy.scrollTo(id, anchor: .center)
@@ -51,7 +53,7 @@ struct ClipletPopoverView: View {
             Divider()
             footer
         }
-        .frame(width: 404)
+        .frame(width: 440)
         .background(.regularMaterial)
         .onAppear {
             searchFocused = true
@@ -59,73 +61,74 @@ struct ClipletPopoverView: View {
         }
     }
 
+    /// Height of the scrollable clip list: sized to the clips that exist, capped by
+    /// the user's visible-row preference and by how much vertical room the screen has,
+    /// so the popover never shows empty space or runs off-screen. The full list stays
+    /// scrollable when it exceeds this height.
+    private func listHeight(clipCount: Int) -> CGFloat {
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        let chromeHeight: CGFloat = 130 // header + footer + dividers
+        let edgeMargin: CGFloat = 40 // keep clear of the screen edges
+        let available = screenHeight - chromeHeight - edgeMargin
+
+        let rows = PopoverLayout.visibleRowCount(
+            clipCount: clipCount,
+            visibleRowLimit: services.history.settings.visibleRowLimit,
+            rowHeight: ClipRowView.height,
+            availableHeight: available
+        )
+        return CGFloat(rows) * ClipRowView.height
+    }
+
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Current clipboard")
-                .font(.system(size: 9, weight: .medium))
-                .textCase(.uppercase)
-                .foregroundStyle(.quaternary)
-
-            ZStack(alignment: .leading) {
-                if services.history.searchQuery.isEmpty {
-                    Text(services.currentClipboardPreview)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                }
-
-                TextField("Search clips", text: $services.history.searchQuery)
-                    .textFieldStyle(.plain)
+        ZStack(alignment: .leading) {
+            if services.history.searchQuery.isEmpty {
+                Text("Type to filter. Click to copy.")
+                    .lineLimit(1)
                     .font(.system(size: 13))
-                    .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
-                    .focused($searchFocused)
+                    .foregroundStyle(.secondary)
             }
-            .frame(height: 18)
+
+            TextField("Type to filter. Click to copy.", text: $services.history.searchQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
+                .focused($searchFocused)
         }
         .padding(.horizontal, 12)
-        .frame(height: 48)
+        .frame(height: 36)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var footer: some View {
         VStack(spacing: 0) {
-            Button("Clear") {
-                services.clearHistory()
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-            .contentShape(Rectangle())
-
-            Divider()
-
-            HStack(spacing: 18) {
-                Button("Preferences") {
-                    services.showSettings()
-                }
-                .buttonStyle(.plain)
-
-                Button("Quit") {
-                    services.quit()
-                }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 8)
-            }
-            .frame(height: 26)
+            footerButton("Clear", action: services.clearHistory)
+            footerButton("Preferences", action: services.showSettings)
+            footerButton("Quit", action: services.quit)
         }
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
+        .padding(.vertical, 4)
+    }
+
+    private func footerButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .padding(.horizontal, 12)
+        .frame(height: 28)
     }
 }
 
 private struct ClipRowView: View {
     static let height: CGFloat = 23
 
+    @EnvironmentObject private var services: AppServices
     var index: Int
     var clip: Clip
     var selected: Bool
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -144,8 +147,27 @@ private struct ClipRowView: View {
             }
         }
         .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: Self.height)
-        .background(selected ? Color.accentColor.opacity(0.18) : Color.clear)
+        .background(rowBackground)
+        // Make the whole row width hit-test for hover and taps, not just the text.
+        .contentShape(Rectangle())
+        // Hover highlights this row locally (no model churn, no scroll) and records
+        // it as the target for Space-to-preview via a non-published id.
+        .onHover { hovering in
+            isHovered = hovering
+            services.hover(clip.id, isHovering: hovering)
+        }
+    }
+
+    private var rowBackground: Color {
+        if selected {
+            return Color.accentColor.opacity(0.18)
+        }
+        if isHovered {
+            return Color.primary.opacity(0.08)
+        }
+        return Color.clear
     }
 
     private var isBinary: Bool {
