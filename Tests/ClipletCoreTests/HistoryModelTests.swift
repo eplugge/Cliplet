@@ -100,6 +100,17 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.clips.count, 2)
     }
 
+    func testRemoveAllClipsClearsHistoryAndSelection() {
+        let first = makeClip("first")
+        let second = makeClip("second")
+        var history = HistoryModel(settings: .defaults, clips: [first, second])
+
+        history.removeAllClips()
+
+        XCTAssertTrue(history.clips.isEmpty)
+        XCTAssertNil(history.selectedClipID)
+    }
+
     func testAddOrUpdateSuppressesInlineTextDuplicates() {
         let original = makeClip("same", created: 1, used: 1)
         let duplicate = makeClip("same", created: 2, used: 2)

@@ -7,30 +7,7 @@ struct ClipletPopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Current clipboard")
-                        .font(.system(size: 9, weight: .medium))
-                        .textCase(.uppercase)
-                        .foregroundStyle(.quaternary)
-
-                    Text(services.history.searchQuery.isEmpty ? services.currentClipboardPreview : "Search clips")
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                TextField("", text: $services.history.searchQuery)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .padding(.horizontal, 12)
-                    .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
-                    .focused($searchFocused)
-            }
-            .frame(height: 48)
+            header
 
             Divider()
 
@@ -56,6 +33,10 @@ struct ClipletPopoverView: View {
                                     Button(clip.isPinned ? "Unpin" : "Pin") {
                                         services.togglePinned(clip)
                                     }
+
+                                    Button("Delete") {
+                                        services.delete(clip)
+                                    }
                                 }
                         }
                     }
@@ -66,6 +47,9 @@ struct ClipletPopoverView: View {
                     proxy.scrollTo(id, anchor: .center)
                 }
             }
+
+            Divider()
+            footer
         }
         .frame(width: 404)
         .background(.regularMaterial)
@@ -73,6 +57,60 @@ struct ClipletPopoverView: View {
             searchFocused = true
             services.history.moveSelectionToStart()
         }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Current clipboard")
+                .font(.system(size: 9, weight: .medium))
+                .textCase(.uppercase)
+                .foregroundStyle(.quaternary)
+
+            ZStack(alignment: .leading) {
+                if services.history.searchQuery.isEmpty {
+                    Text(services.currentClipboardPreview)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                }
+
+                TextField("Search clips", text: $services.history.searchQuery)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .opacity(services.history.searchQuery.isEmpty ? 0.02 : 1)
+                    .focused($searchFocused)
+            }
+            .frame(height: 18)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 48)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var footer: some View {
+        HStack(spacing: 12) {
+            Button("Preferences") {
+                services.showSettings()
+            }
+            .buttonStyle(.plain)
+
+            Button("Clear") {
+                services.clearHistory()
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 8)
+
+            Button("Quit") {
+                services.quit()
+            }
+            .buttonStyle(.plain)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 12)
+        .frame(height: 28)
     }
 }
 

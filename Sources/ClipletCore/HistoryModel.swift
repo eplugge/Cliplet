@@ -72,6 +72,19 @@ public struct HistoryModel: Sendable {
         clips[index].isPinned = isPinned
     }
 
+    public mutating func removeClip(_ id: UUID) {
+        clips.removeAll { $0.id == id }
+        if selectedClipID == id {
+            selectedClipID = filteredClips.first?.id
+        }
+    }
+
+    public mutating func removeAllClips() {
+        clips.removeAll()
+        selectedClipID = nil
+        pendingDelete = nil
+    }
+
     public mutating func moveSelection(offset: Int) {
         let visibleClips = filteredClips
         guard !visibleClips.isEmpty else {

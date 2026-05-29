@@ -72,6 +72,10 @@ final class AppServices: ObservableObject {
     }
 
     func capture(_ clip: Clip) {
+        guard !clip.preview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+
         if case .storedPayload(let filename) = clip.payload,
            let data = pendingPayloadData.removeValue(forKey: filename) {
             try? store.writePayload(data, filename: filename)
@@ -135,6 +139,25 @@ final class AppServices: ObservableObject {
     func togglePinned(_ clip: Clip) {
         history.setPinned(clip.id, isPinned: !clip.isPinned)
         persistQuietly()
+    }
+
+    func delete(_ clip: Clip) {
+        history.removeClip(clip.id)
+        persistQuietly()
+    }
+
+    func clearHistory() {
+        history.removeAllClips()
+        persistQuietly()
+    }
+
+    func showSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    func quit() {
+        NSApp.terminate(nil)
     }
 
     func select(_ clip: Clip?) {
