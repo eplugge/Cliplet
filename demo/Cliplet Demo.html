@@ -4,16 +4,1154 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cliplet — Demo</title>
-  <link rel="stylesheet" href="cliplet.css" />
+  <!-- Self-contained: CSS + JSX inlined so it runs from file:// with no local server.
+       React/Babel still load from CDN (needs internet once). -->
+  <style>
+/* ============================================================
+   Cliplet demo — macOS scene styling
+   System fonts only (faithful to macOS). No external deps.
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --font-ui: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", "Monaco", monospace;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Stage / scaling ---- */
+.stage {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #000;
+}
+.canvas {
+  position: relative;
+  width: 1280px; height: 800px;
+  transform-origin: center center;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+/* ============================================================
+   THEME TOKENS
+   ============================================================ */
+.canvas[data-theme="dark"] {
+  --wallpaper:
+    radial-gradient(120% 120% at 18% 8%, #3a2f5c 0%, rgba(58,47,92,0) 46%),
+    radial-gradient(120% 130% at 92% 0%, #1d3a63 0%, rgba(29,58,99,0) 50%),
+    radial-gradient(150% 150% at 60% 120%, #2a1d3f 0%, rgba(42,29,63,0) 55%),
+    linear-gradient(160deg, #15131f 0%, #100f18 100%);
+  --menubar-bg: rgba(10, 8, 16, 0.30);
+  --menubar-fg: rgba(255,255,255,0.92);
+
+  --popover-bg: rgba(40, 40, 43, 0.66);
+  --popover-border: rgba(255,255,255,0.12);
+  --popover-inner-hl: rgba(255,255,255,0.06);
+  --text-primary: rgba(255,255,255,0.94);
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
+  --divider: rgba(255,255,255,0.10);
+  --sel: rgba(60, 98, 178, 0.55);
+  --row-hover: rgba(255,255,255,0.05);
+
+  --chat-bg: rgba(34,34,38,0.82);
+  --chat-titlebar: rgba(48,48,53,0.9);
+  --chat-fg: rgba(255,255,255,0.9);
+  --chat-sub: rgba(255,255,255,0.45);
+  --chat-input: rgba(255,255,255,0.08);
+  --chat-bubble: #2563d6;
+
+  --shadow-popover: 0 18px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  --window-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.4);
+  --popover-solid: #2c2c2f;
+  --menubar-solid: #1b1924;
+  --chat-solid: #26262b;
+  --ql-solid: #26262b;
+}
+
+.canvas[data-theme="light"] {
+  --wallpaper:
+    radial-gradient(120% 120% at 12% 6%, #ffd9a8 0%, rgba(255,217,168,0) 45%),
+    radial-gradient(120% 130% at 95% 4%, #aed3ff 0%, rgba(174,211,255,0) 50%),
+    radial-gradient(150% 150% at 70% 120%, #ffc7d9 0%, rgba(255,199,217,0) 55%),
+    linear-gradient(160deg, #f4eee7 0%, #e7e9f0 100%);
+  --menubar-bg: rgba(255,255,255,0.40);
+  --menubar-fg: rgba(20,20,24,0.88);
+
+  --popover-bg: rgba(247, 247, 249, 0.72);
+  --popover-border: rgba(0,0,0,0.10);
+  --popover-inner-hl: rgba(255,255,255,0.6);
+  --text-primary: rgba(0,0,0,0.88);
+  --text-secondary: rgba(0,0,0,0.48);
+  --text-tertiary: rgba(0,0,0,0.30);
+  --divider: rgba(0,0,0,0.09);
+  --sel: rgba(0, 122, 255, 0.20);
+  --row-hover: rgba(0,0,0,0.04);
+
+  --chat-bg: rgba(252,252,253,0.86);
+  --chat-titlebar: rgba(240,240,243,0.92);
+  --chat-fg: rgba(20,20,24,0.92);
+  --chat-sub: rgba(0,0,0,0.45);
+  --chat-input: rgba(0,0,0,0.05);
+  --chat-bubble: #2563d6;
+
+  --shadow-popover: 0 18px 50px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+  --window-shadow: 0 30px 70px rgba(0,0,0,0.22), 0 8px 20px rgba(0,0,0,0.14);
+  --popover-solid: #f3f3f5;
+  --menubar-solid: #eef0f4;
+  --chat-solid: #fbfbfc;
+  --ql-solid: #26262b;
+}
+
+.wallpaper {
+  position: absolute; inset: 0;
+  background: var(--wallpaper);
+}
+
+/* ============================================================
+   MENU BAR
+   ============================================================ */
+.menubar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 26px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  background: var(--menubar-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  color: var(--menubar-fg);
+  z-index: 30;
+}
+.menubar .mb-left { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.menubar .mb-left .brand { font-weight: 600; }
+.menubar .mb-left .mb-menu { opacity: 0.92; }
+.menubar .mb-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.menubar .mb-icon { display: flex; align-items: center; opacity: 0.92; }
+.menubar .mb-clip {
+  position: relative;
+  border-radius: 5px;
+  padding: 2px 3px;
+  transition: background 0.2s ease;
+}
+.menubar .mb-clip.active { background: rgba(255,255,255,0.18); }
+.menubar .mb-clock { font-size: 13px; opacity: 0.92; font-variant-numeric: tabular-nums; }
+.menubar svg { display: block; }
+
+/* ============================================================
+   APP WINDOWS (editor + chat)
+   ============================================================ */
+.win {
+  position: absolute;
+  border-radius: 11px;
+  overflow: hidden;
+  box-shadow: var(--window-shadow);
+}
+.win-titlebar {
+  height: 38px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+}
+.traffic { display: flex; gap: 8px; align-items: center; }
+.traffic span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.traffic .r { background: #ff5f57; }
+.traffic .y { background: #febc2e; }
+.traffic .g { background: #28c840; }
+.win-title { font-size: 12.5px; font-weight: 500; opacity: 0.7; }
+
+/* ---- Code editor (always dark, like a real editor) ---- */
+.editor {
+  left: 64px; top: 156px; width: 560px; height: 528px;
+  background: #1c1c22;
+  border: 0.5px solid rgba(255,255,255,0.08);
+}
+.editor .win-titlebar {
+  background: #26262e;
+  color: rgba(255,255,255,0.6);
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+}
+.editor .win-title { color: rgba(255,255,255,0.55); margin-left: 6px; }
+.editor .editor-body {
+  display: flex; font-family: var(--font-mono); font-size: 12.5px; line-height: 19px;
+  padding: 12px 0; height: calc(100% - 38px);
+}
+.editor .gutter {
+  width: 42px; text-align: right; padding-right: 12px;
+  color: rgba(255,255,255,0.22); user-select: none; flex-shrink: 0;
+}
+.editor .code { flex: 1; padding-right: 14px; color: rgba(255,255,255,0.85); white-space: pre; overflow: hidden; }
+.tk-key { color: #ff7ab2; }
+.tk-type { color: #8ad6ff; }
+.tk-str { color: #ff9d6b; }
+.tk-fn { color: #c9a3ff; }
+.tk-com { color: rgba(255,255,255,0.32); font-style: italic; }
+.tk-num { color: #7fe0b0; }
+
+/* ---- Chat / compose window (themed) ---- */
+.chat {
+  left: 766px; top: 412px; width: 446px; height: 318px;
+  background: var(--chat-bg);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border: 0.5px solid var(--popover-border);
+  display: flex; flex-direction: column;
+}
+.chat .win-titlebar {
+  background: var(--chat-titlebar);
+  color: var(--chat-fg);
+  border-bottom: 0.5px solid var(--divider);
+}
+.chat .chat-name { font-size: 13px; font-weight: 600; margin-left: 6px; }
+.chat .chat-body { flex: 1; padding: 16px 16px 8px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; overflow: hidden; }
+.chat .msg { max-width: 78%; padding: 8px 12px; border-radius: 16px; font-size: 13px; line-height: 1.35; }
+.chat .msg.them { align-self: flex-start; background: var(--chat-input); color: var(--chat-fg); border-bottom-left-radius: 5px; }
+.chat .msg.me { align-self: flex-end; background: var(--chat-bubble); color: #fff; border-bottom-right-radius: 5px; }
+.chat .msg.me.img-bubble { padding: 5px; }
+.chat .bubble-img {
+  width: 184px; height: 116px; border-radius: 11px; display: block;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+  position: relative; overflow: hidden;
+}
+.chat .compose {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-top: 0.5px solid var(--divider);
+}
+.chat .compose-field {
+  flex: 1; min-height: 34px;
+  background: var(--chat-input);
+  border-radius: 17px;
+  padding: 7px 14px;
+  font-size: 13px; color: var(--chat-fg);
+  display: flex; align-items: center; gap: 8px;
+}
+.chat .compose-field .placeholder { color: var(--chat-sub); }
+.chat .paste-thumb {
+  width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+  position: relative; overflow: hidden;
+  animation: pop-in 0.32s cubic-bezier(0.34,1.56,0.64,1);
+}
+.chat .send-btn {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--chat-bubble); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.45; transition: opacity 0.2s ease;
+}
+.chat .send-btn.ready { opacity: 1; }
+
+/* faux screenshot artwork shared by quicklook + chat thumbs */
+.shot-art::before, .shot-art::after { content: ""; position: absolute; }
+.shot-art::before {
+  left: 12%; top: 22%; width: 30%; height: 18%;
+  background: rgba(255,255,255,0.85); border-radius: 4px;
+  box-shadow: 0 220% 0 rgba(255,255,255,0.5), 0 440% 0 rgba(255,255,255,0.3);
+}
+.shot-art::after {
+  right: 12%; bottom: 18%; width: 34%; height: 34%;
+  background: rgba(255,255,255,0.22); border-radius: 50%;
+}
+
+/* ============================================================
+   CLIPLET POPOVER
+   ============================================================ */
+.popover-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+.popover-wrap {
+  position: absolute;
+  transform-origin: top center;
+  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.2,0.9,0.3,1.2);
+}
+.popover-wrap.closed { opacity: 0; transform: scale(0.94) translateY(-6px); pointer-events: none; }
+.popover-wrap.open   { opacity: 1; transform: scale(1) translateY(0); }
+
+.notch {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 9px; overflow: hidden;
+}
+.notch::before {
+  content: ""; position: absolute; left: 50%; top: 4px;
+  width: 16px; height: 16px; transform: translateX(-50%) rotate(45deg);
+  background: var(--popover-bg);
+  border-left: 0.5px solid var(--popover-border);
+  border-top: 0.5px solid var(--popover-border);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+}
+
+.popover {
+  width: 440px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(34px) saturate(1.9);
+  -webkit-backdrop-filter: blur(34px) saturate(1.9);
+  border: 0.5px solid var(--popover-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-popover), inset 0 0.5px 0 var(--popover-inner-hl);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.po-header {
+  height: 36px; display: flex; align-items: center;
+  padding: 0 12px; font-size: 13px;
+}
+.po-header .ph-placeholder { color: var(--text-secondary); }
+.po-header .ph-query { color: var(--text-primary); }
+.po-header .ph-caret {
+  display: inline-block; width: 1px; height: 15px; margin-left: 1px;
+  background: var(--text-primary);
+  animation: blink 1s steps(1) infinite;
+  vertical-align: -3px;
+}
+.po-divider { height: 0.5px; background: var(--divider); }
+
+.po-list { padding: 0; }
+.po-row {
+  height: 23px; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; font-size: 13px;
+  position: relative;
+}
+.po-row.selected { background: var(--sel); }
+.po-row .pr-text {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary);
+}
+.po-row.binary .pr-text { color: var(--text-secondary); }
+.po-row .pr-pin { color: var(--text-primary); margin-right: -2px; }
+.po-row .pr-key { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.po-row.confirm-delete { background: rgba(255, 69, 58, 0.28); }
+.po-row.confirm-delete .pr-text { color: #fff; }
+.po-row .pr-del { font-size: 11px; color: #fff; flex-shrink: 0; font-weight: 500; }
+.po-row.flash { animation: row-flash 0.5s ease; }
+
+.po-footer { padding: 4px 0; }
+.po-foot-btn {
+  height: 28px; display: flex; align-items: center;
+  padding: 0 12px; font-size: 13px; color: var(--text-primary);
+}
+.po-foot-btn.hot { background: var(--row-hover); }
+
+/* ============================================================
+   QUICK LOOK
+   ============================================================ */
+.quicklook-scrim {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.28);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.quicklook-scrim.show { opacity: 1; }
+.quicklook {
+  width: 460px;
+  background: rgba(30,30,33,0.92);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border: 0.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+  overflow: hidden;
+  transform: scale(0.9); transition: transform 0.24s cubic-bezier(0.2,0.9,0.3,1.25);
+}
+.quicklook-scrim.show .quicklook { transform: scale(1); }
+.ql-bar {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+  background: rgba(255,255,255,0.06);
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92); font-size: 13px; font-weight: 500;
+}
+.ql-bar .ql-tl { position: absolute; left: 12px; display: flex; gap: 7px; }
+.ql-bar .ql-tl span { width: 11px; height: 11px; border-radius: 50%; }
+.ql-bar .ql-share { position: absolute; right: 14px; color: rgba(255,255,255,0.5); }
+.ql-body { padding: 22px; }
+.ql-image {
+  width: 100%; height: 256px; border-radius: 8px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+}
+.ql-meta { margin-top: 14px; display: flex; justify-content: space-between; color: rgba(255,255,255,0.55); font-size: 12px; }
+
+/* ============================================================
+   POINTER + KEY HINT + CAPTION
+   ============================================================ */
+.pointer {
+  position: absolute; z-index: 70; top: 0; left: 0;
+  width: 24px; height: 24px;
+  transition: left var(--cur-dur, 0.6s) cubic-bezier(0.4,0,0.2,1),
+              top var(--cur-dur, 0.6s) cubic-bezier(0.4,0,0.2,1);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45));
+  pointer-events: none;
+}
+.pointer .click-ring {
+  position: absolute; left: 2px; top: 2px; width: 18px; height: 18px;
+  border-radius: 50%; border: 2px solid rgba(255,255,255,0.9);
+  opacity: 0; transform: scale(0.3);
+}
+.pointer.clicking .click-ring { animation: click-ripple 0.4s ease-out; }
+.pointer.down { transform: scale(0.86); }
+
+.keyhint {
+  position: absolute; z-index: 65; bottom: 96px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0; transition: opacity 0.18s ease;
+}
+.keyhint.show { opacity: 1; }
+.keycap {
+  min-width: 38px; height: 38px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(248,248,250,0.96);
+  border-radius: 9px;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25), 0 5px 12px rgba(0,0,0,0.35);
+  color: #1a1a1f; font-size: 15px; font-weight: 600;
+  border: 0.5px solid rgba(0,0,0,0.1);
+}
+
+.caption {
+  position: absolute; z-index: 65; bottom: 40px; left: 50%; transform: translateX(-50%);
+  padding: 9px 18px;
+  background: rgba(10,10,14,0.62);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 0.5px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  color: rgba(255,255,255,0.95); font-size: 15px; font-weight: 500;
+  white-space: nowrap;
+  opacity: 0; transition: opacity 0.25s ease;
+  letter-spacing: 0.1px;
+}
+.caption.show { opacity: 1; }
+.caption .scene-tag {
+  color: rgba(255,255,255,0.5); font-weight: 600; margin-right: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   CONTROLS (outside scaled canvas)
+   ============================================================ */
+.controls {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 200;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 9px;
+  background: rgba(22,22,26,0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  font-family: var(--font-ui);
+}
+.controls button {
+  appearance: none; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.9);
+  font-size: 12.5px; font-weight: 500;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-ui);
+  transition: background 0.15s ease;
+}
+.controls button:hover { background: rgba(255,255,255,0.16); }
+.controls button.active { background: #2563d6; color: #fff; }
+.controls .ctl-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.14); margin: 0 3px; }
+.controls .ctl-label { color: rgba(255,255,255,0.4); font-size: 11px; padding: 0 4px; }
+
+body.capture .controls { display: none !important; }
+
+/* save_screenshot is a DOM clone that can't paint backdrop-filter — swap blur for
+   solid backgrounds in capture frames. Closed overlays are unmounted in JS, so no
+   opacity/visibility hacks are needed here. The live demo keeps the real blur. */
+body.capture .menubar { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--menubar-solid); }
+body.capture .popover { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .notch::before { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .chat { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--chat-solid); }
+body.capture .quicklook { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--ql-solid); }
+body.capture .quicklook-scrim { transition: none !important; }
+body.capture .popover-wrap { transition: none !important; }
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+@keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@keyframes click-ripple {
+  0% { opacity: 0.9; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes row-flash {
+  0% { background: rgba(255,255,255,0); }
+  35% { background: rgba(120,160,255,0.4); }
+  100% { background: var(--sel); }
+}
+  </style>
 </head>
 <body>
   <div id="root"></div>
-
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel">
+/* global React */
+const { useRef } = React;
 
-  <script type="text/babel" src="cliplet-ui.jsx"></script>
-  <script type="text/babel" src="cliplet-app.jsx"></script>
+/* ---------- tiny inline icons (simple shapes only) ---------- */
+function Paperclip({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 11.5l-8.1 8.1a4.6 4.6 0 0 1-6.5-6.5l8.4-8.4a3 3 0 0 1 4.3 4.3l-8.3 8.3a1.4 1.4 0 0 1-2-2l7.6-7.6" />
+    </svg>
+  );
+}
+function MbGlyphs() {
+  // battery / wifi / spotlight / control-center — minimal monochrome
+  return (
+    <React.Fragment>
+      <span className="mb-icon" title="Wi-Fi">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 18.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zM5.6 13.4a9 9 0 0 1 12.8 0l-1.7 1.7a6.6 6.6 0 0 0-9.4 0l-1.7-1.7zM2.4 10.2a13.5 13.5 0 0 1 19.2 0l-1.7 1.7a11.1 11.1 0 0 0-15.8 0l-1.7-1.7z" />
+        </svg>
+      </span>
+      <span className="mb-icon" title="Battery">
+        <svg width="26" height="14" viewBox="0 0 30 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <rect x="1" y="2" width="23" height="10" rx="3" />
+          <rect x="3" y="4" width="16" height="6" rx="1.5" fill="currentColor" stroke="none" />
+          <path d="M26 5v4c1.2-.3 1.2-3.7 0-4z" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+      <span className="mb-icon" title="Control Center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M4 8h16M4 16h16" /><circle cx="9" cy="8" r="2.2" fill="currentColor" stroke="none" /><circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+    </React.Fragment>
+  );
+}
+
+/* ---------- Menu bar ---------- */
+function MenuBar({ clipActive, clock }) {
+  return (
+    <div className="menubar">
+      <div className="mb-left">
+        <Paperclip size={15} />
+        <span className="brand">Cliplet</span>
+        <span className="mb-menu">File</span>
+        <span className="mb-menu">Edit</span>
+        <span className="mb-menu">View</span>
+        <span className="mb-menu">Help</span>
+      </div>
+      <div className="mb-right">
+        <MbGlyphs />
+        <span data-hit="clip-icon" className={"mb-icon mb-clip" + (clipActive ? " active" : "")}>
+          <Paperclip size={16} />
+        </span>
+        <span className="mb-clock">{clock}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Code editor window (ambient context) ---------- */
+function EditorWindow() {
+  const lines = [
+    [["com", "// ClipletPopoverView.swift"]],
+    [],
+    [["key", "struct "], ["type", "ClipRowView"], ["", ": "], ["type", "View"], ["", " {"]],
+    [["", "    "], ["key", "var"], ["", " body: "], ["key", "some "], ["type", "View"], ["", " {"]],
+    [["", "        "], ["type", "HStack"], ["", "(spacing: "], ["num", "8"], ["", ") {"]],
+    [["", "            "], ["type", "Text"], ["", "(prefix + clip."], ["fn", "preview"], ["", ")"]],
+    [["", "                ."], ["fn", "lineLimit"], ["", "("], ["num", "1"], ["", ")"]],
+    [["", "                ."], ["fn", "font"], ["", "(.system(size: "], ["num", "13"], ["", "))"]],
+    [["", "            "], ["type", "Spacer"], ["", "(minLength: "], ["num", "12"], ["", ")"]],
+    [["", "            "], ["key", "if"], ["", " index < "], ["num", "9"], ["", " {"]],
+    [["", "                "], ["type", "Text"], ["", "("], ["str", "\"⌘\\(index + 1)\""], ["", ")"]],
+    [["", "            }"]],
+    [["", "        }"]],
+    [["", "        ."], ["fn", "background"], ["", "(selected ? Color."], ["fn", "accentColor"], ["", " : ."], ["fn", "clear"], ["", ")"]],
+    [["", "    }"]],
+    [["", "}"]],
+  ];
+  return (
+    <div className="win editor">
+      <div className="win-titlebar">
+        <div className="traffic"><span className="r" /><span className="y" /><span className="g" /></div>
+        <span className="win-title">ClipletPopoverView.swift — Cliplet</span>
+      </div>
+      <div className="editor-body">
+        <div className="gutter">{lines.map((_, i) => <div key={i}>{i + 1}</div>)}</div>
+        <div className="code">
+          {lines.map((toks, i) => (
+            <div key={i}>{toks.length ? toks.map((t, j) => (
+              <span key={j} className={t[0] ? "tk-" + t[0] : ""}>{t[1]}</span>
+            )) : "\u00A0"}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Chat / compose window (paste target) ---------- */
+function ChatWindow({ pasted, sent, sendReady }) {
+  return (
+    <div className="win chat">
+      <div className="win-titlebar">
+        <div className="traffic"><span className="r" /><span className="y" /><span className="g" /></div>
+        <span className="chat-name">Design — Messages</span>
+      </div>
+      <div className="chat-body">
+        <div className="msg them">Did the new screenshot land?</div>
+        {sent && (
+          <div className="msg me img-bubble">
+            <span className="bubble-img shot-art" />
+          </div>
+        )}
+      </div>
+      <div className="compose">
+        <div className="compose-field" data-hit="chat-field">
+          {pasted && !sent && <span className="paste-thumb shot-art" />}
+          {!pasted && <span className="placeholder">Message</span>}
+          {pasted && !sent && <span style={{ color: "var(--chat-sub)" }}>Screenshot.png</span>}
+        </div>
+        <div className={"send-btn" + (sendReady ? " ready" : "")} data-hit="send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V6M6 12l6-6 6 6" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Cliplet popover ---------- */
+function clipIsBinary(kind) {
+  return kind === "image" || kind === "file" || kind === "audio" || kind === "other";
+}
+
+function Popover({ open, left, top, clips, search, selectedId, deleteConfirmId, flashId, footerHot }) {
+  return (
+    <div className={"popover-wrap " + (open ? "open" : "closed")} style={{ left, top, width: 440 }}>
+      <div className="notch" />
+      <div className="popover">
+        <div className="po-header" data-hit="search">
+          {search ? (
+            <span className="ph-query">{search}<span className="ph-caret" /></span>
+          ) : (
+            <span className="ph-placeholder">Type to filter. Click to copy.</span>
+          )}
+        </div>
+        <div className="po-divider" />
+        <div className="po-list">
+          {clips.map((clip, i) => {
+            const sel = clip.id === selectedId;
+            const confirm = clip.id === deleteConfirmId;
+            return (
+              <div key={clip.id} data-hit={"row-" + clip.id}
+                className={"po-row"
+                  + (clipIsBinary(clip.kind) ? " binary" : "")
+                  + (sel && !confirm ? " selected" : "")
+                  + (confirm ? " confirm-delete" : "")
+                  + (clip.id === flashId ? " flash" : "")}>
+                {clip.pinned && <span className="pr-pin">•</span>}
+                <span className="pr-text">{clip.preview}</span>
+                {confirm
+                  ? <span className="pr-del">Delete? ⌦ again</span>
+                  : (i < 9 && <span className="pr-key">⌘{i + 1}</span>)}
+              </div>
+            );
+          })}
+        </div>
+        <div className="po-divider" />
+        <div className="po-footer">
+          <div className={"po-foot-btn" + (footerHot === "clear" ? " hot" : "")}>Clear</div>
+          <div className={"po-foot-btn" + (footerHot === "prefs" ? " hot" : "")}>Preferences…</div>
+          <div className={"po-foot-btn" + (footerHot === "quit" ? " hot" : "")}>Quit Cliplet</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Quick Look ---------- */
+function QuickLook({ show, clip }) {
+  return (
+    <div className={"quicklook-scrim" + (show ? " show" : "")}>
+      <div className="quicklook">
+        <div className="ql-bar">
+          <div className="ql-tl"><span style={{ background: "#ff5f57" }} /><span style={{ background: "#febc2e" }} /><span style={{ background: "#28c840" }} /></div>
+          {clip ? clip.qlTitle : ""}
+          <span className="ql-share">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v12M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+            </svg>
+          </span>
+        </div>
+        <div className="ql-body">
+          <div className="ql-image shot-art" />
+          <div className="ql-meta">
+            <span>{clip ? clip.qlDims : ""}</span>
+            <span>{clip ? clip.qlSize : ""}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Pointer + key hint + caption ---------- */
+function Pointer({ x, y, dur, clicking, down, hidden }) {
+  return (
+    <div className={"pointer" + (clicking ? " clicking" : "") + (down ? " down" : "")}
+      style={{ left: x, top: y, "--cur-dur": dur + "ms", display: hidden ? "none" : "block" }}>
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <path d="M5 2l0 17 4.2-4.1 2.6 6.1 3.1-1.3-2.6-6 5.8 0z"
+          fill="#fff" stroke="#1a1a1a" strokeWidth="1.2" strokeLinejoin="round" />
+      </svg>
+      <span className="click-ring" />
+    </div>
+  );
+}
+
+function KeyHint({ show, label }) {
+  return (
+    <div className={"keyhint" + (show ? " show" : "")}>
+      <span className="keycap">{label}</span>
+    </div>
+  );
+}
+
+function Caption({ show, scene, text }) {
+  return (
+    <div className={"caption" + (show ? " show" : "")}>
+      {scene && <span className="scene-tag">{scene}</span>}{text}
+    </div>
+  );
+}
+
+Object.assign(window, {
+  MenuBar, EditorWindow, ChatWindow, Popover, QuickLook, Pointer, KeyHint, Caption, clipIsBinary,
+});
+  </script>
+  <script type="text/babel">
+/* global React, ReactDOM, MenuBar, EditorWindow, ChatWindow, Popover, QuickLook, Pointer, KeyHint, Caption */
+const { useState, useRef, useEffect } = React;
+
+/* ---------------- clip history data ---------------- */
+const DATA = [
+  { id: "c1", kind: "url",   preview: "https://github.com/eplugge/Cliplet" },
+  { id: "c2", kind: "text",  preview: "brew install --cask eplugge/tap/cliplet" },
+  { id: "c3", kind: "text",  preview: "Paste from the past." },
+  { id: "c4", kind: "image", preview: "Image: Screenshot · PNG · 777.2 KB",
+    qlTitle: "Screenshot.png", qlDims: "2048 × 1280", qlSize: "777.2 KB" },
+  { id: "c5", kind: "file",  preview: "File: brand-logo.svg · SVG" },
+  { id: "c6", kind: "text",  preview: 'git commit -m "ship the menu-bar clip history"' },
+  { id: "c7", kind: "image", preview: "Image: logo@2x · PNG · 88.1 KB",
+    qlTitle: "logo@2x.png", qlDims: "512 × 512", qlSize: "88.1 KB" },
+  { id: "c8", kind: "text",  preview: "eelco@cliplet.app" },
+  { id: "c9", kind: "url",   preview: "https://news.ycombinator.com" },
+  { id: "c10", kind: "text", preview: "#0A5AD0" },
+];
+const cloneData = () => DATA.map((c) => ({ ...c, pinned: false }));
+
+/* ---------------- frozen-frame presets (for deterministic capture) ---------------- */
+function presetState(name) {
+  const img = DATA.find((c) => c.preview.includes("Screenshot"));
+  const brew = DATA.find((c) => c.preview.includes("brew install"));
+  const junk = DATA.find((c) => c.preview.includes("#0A5AD0"));
+  const base = { clipActive: true, popoverOpen: true, pointerHidden: true, capShow: false, keyShow: false };
+  switch (name) {
+    case "popover":
+    case "hero": return { ...base, selectedId: img.id };
+    case "filter": return { ...base, search: "screen", selectedId: img.id };
+    case "quicklook": return { ...base, search: "screen", selectedId: img.id, quickLookId: img.id };
+    case "pin": {
+      const arr = cloneData();
+      const i = arr.findIndex((c) => c.id === brew.id);
+      const [it] = arr.splice(i, 1); it.pinned = true; arr.unshift(it);
+      return { ...base, clips: arr, selectedId: brew.id };
+    }
+    case "delete": return { ...base, selectedId: junk.id, deleteConfirmId: junk.id };
+    case "paste": return { clipActive: false, popoverOpen: false, pointerHidden: true, capShow: false, chatPasted: true, chatSent: true, sendReady: true };
+    default: return {};
+  }
+}
+const _params = new URLSearchParams(location.search);
+const _pathMatch = location.pathname.match(/_frames\/([a-z]+)-(dark|light)\.html/i);
+const FRAME = (() => {
+  const f = (typeof window !== "undefined" && window.__FRAME) || _params.get("frame") || (_pathMatch && _pathMatch[1]);
+  return (!f || f === "live") ? null : f;
+})();
+const FTHEME = (typeof window !== "undefined" && window.__THEME) || _params.get("theme") || (_pathMatch && _pathMatch[2]) || "dark";
+try { localStorage.removeItem("cliplet_frame"); localStorage.removeItem("cliplet_theme"); } catch (e) {}
+
+/* ---------------- layout ---------------- */
+const POPOVER_LEFT = 760;   // clip icon center 980 − 220
+const POPOVER_TOP = 34;
+
+function matches(clip, q) {
+  if (!q) return true;
+  return clip.preview.toLowerCase().includes(q.toLowerCase());
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function App() {
+  const [s, setS] = useState(() => ({
+    theme: FTHEME,
+    clock: "Thu 29 May  9:41",
+    clipActive: false,
+    popoverOpen: false,
+    search: "",
+    clips: cloneData(),
+    selectedId: null,
+    quickLookId: null,
+    deleteConfirmId: null,
+    flashId: null,
+    footerHot: null,
+    chatPasted: false,
+    chatSent: false,
+    sendReady: false,
+    curX: 360, curY: 470, curDur: 600, clicking: false, down: false, pointerHidden: false,
+    keyLabel: "", keyShow: false,
+    capScene: "", capText: "", capShow: false,
+    ...(FRAME ? presetState(FRAME) : {}),
+  }));
+
+  const canvasRef = useRef(null);
+  const setRef = useRef(setS);
+  const ctrl = useRef({ paused: false, speed: 1, restart: false, frozen: false, startAt: null, alive: true });
+
+  const merge = (patch) => setRef.current((prev) => ({ ...prev, ...patch }));
+
+  /* center of a hit element in canvas (1280×800) coordinates */
+  function center(sel) {
+    const cv = canvasRef.current;
+    if (!cv) return null;
+    const el = cv.querySelector(sel);
+    if (!el) return null;
+    const cr = cv.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const scale = cr.width / 1280;
+    return { x: (r.left + r.width / 2 - cr.left) / scale, y: (r.top + r.height / 2 - cr.top) / scale };
+  }
+  const tip = (p) => (p ? { x: p.x - 4, y: p.y - 2 } : null);
+
+  useEffect(() => {
+    const c = ctrl.current;
+    c.alive = true;
+
+    // Frozen-frame capture mode: render one static preset, no animation loop.
+    if (FRAME) {
+      document.body.classList.add("capture");
+      window.__demo = {
+        live() { localStorage.setItem("cliplet_frame", "live"); location.reload(); },
+        setTheme(t) { merge({ theme: t }); },
+      };
+      return () => { c.alive = false; };
+    }
+
+    async function wait(ms) {
+      let rem = ms;
+      while (rem > 0) {
+        if (!c.alive) throw "dead";
+        if (c.restart) throw "restart";
+        if (c.paused) { await sleep(60); continue; }
+        const step = Math.min(50, rem);
+        await sleep(step / c.speed);
+        rem -= step;
+      }
+    }
+    async function moveTo(target, dur = 650) {
+      const p = typeof target === "function" ? target() : target;
+      const t = tip(p);
+      if (t) merge({ curX: t.x, curY: t.y, curDur: dur });
+      await wait(dur + 40);
+    }
+    async function click() {
+      merge({ down: true });
+      await wait(110);
+      merge({ down: false, clicking: true });
+      await wait(420);
+      merge({ clicking: false });
+    }
+    async function key(label) {
+      merge({ keyLabel: label, keyShow: true });
+      await wait(560);
+      merge({ keyShow: false });
+      await wait(140);
+    }
+    async function caption(scene, text) {
+      merge({ capShow: false });
+      await wait(190);
+      merge({ capScene: scene, capText: text, capShow: true });
+      await wait(110);
+    }
+    async function type(text, per = 95) {
+      let cur = "";
+      for (const ch of text) { cur += ch; merge({ search: cur }); await wait(per); }
+    }
+    function find(sub) { return DATA.find((c) => c.preview.includes(sub)); }
+
+    function resetA() {
+      merge({
+        clipActive: false, popoverOpen: false, search: "", clips: cloneData(),
+        selectedId: null, quickLookId: null, deleteConfirmId: null, flashId: null, footerHot: null,
+        chatPasted: false, chatSent: false, sendReady: false, keyShow: false,
+        curX: 360, curY: 470, curDur: 700, pointerHidden: false,
+      });
+    }
+    function resetB() {
+      merge({
+        clipActive: false, popoverOpen: false, search: "", clips: cloneData(),
+        selectedId: null, quickLookId: null, deleteConfirmId: null, flashId: null, footerHot: null,
+        keyShow: false, curX: 360, curY: 470, curDur: 700, pointerHidden: false,
+      });
+    }
+
+    /* ----------- SCENE 1: search → quick look → paste ----------- */
+    async function sceneA() {
+      await caption("Scene 1 / 2", "Everything you copy — kept and searchable");
+      await wait(900);
+      await caption("Scene 1 / 2", "Click the menu-bar icon");
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 800);
+      await wait(120);
+      await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
+      await wait(750);
+
+      await caption("Scene 1 / 2", "Type to filter");
+      await moveTo(() => tip(center('[data-hit="search"]')), 520);
+      await click();
+      await type("screen", 100);
+      await wait(450);
+
+      const img = find("Screenshot");
+      merge({ selectedId: img.id });
+      await wait(550);
+
+      await caption("Scene 1 / 2", "Space → Quick Look preview");
+      await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 420);
+      await key("space");
+      merge({ quickLookId: img.id });
+      await wait(1900);
+      merge({ quickLookId: null });
+      await wait(350);
+
+      await caption("Scene 1 / 2", "Click to copy it back");
+      await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 380);
+      await click();
+      merge({ popoverOpen: false, clipActive: false, search: "" });
+      await wait(550);
+
+      await caption("Scene 1 / 2", "Paste anywhere — ⌘V");
+      await moveTo(() => tip(center('[data-hit="chat-field"]')), 800);
+      await click();
+      await wait(180);
+      await key("⌘V");
+      merge({ chatPasted: true, sendReady: true });
+      await wait(750);
+      await moveTo(() => tip(center('[data-hit="send"]')), 480);
+      await click();
+      merge({ chatSent: true });
+      await wait(1900);
+    }
+
+    /* ----------- SCENE 2: pin + delete ----------- */
+    async function sceneB() {
+      await caption("Scene 2 / 2", "Open Cliplet");
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 800);
+      await wait(100);
+      await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
+      await wait(700);
+
+      await caption("Scene 2 / 2", "Pin the clips you reuse");
+      const brew = find("brew install");
+      await moveTo(() => tip(center('[data-hit="row-' + brew.id + '"]')), 520);
+      merge({ selectedId: brew.id });
+      await wait(450);
+      // pin → jump to top, flash
+      setRef.current((prev) => {
+        const arr = prev.clips.map((c) => ({ ...c }));
+        const i = arr.findIndex((c) => c.id === brew.id);
+        const [it] = arr.splice(i, 1);
+        it.pinned = true;
+        arr.unshift(it);
+        return { ...prev, clips: arr, selectedId: brew.id, flashId: brew.id };
+      });
+      await wait(650);
+      merge({ flashId: null });
+      await wait(700);
+
+      await caption("Scene 2 / 2", "Delete what you don’t — ⌦ twice");
+      const junk = find("#0A5AD0");
+      merge({ selectedId: junk.id });
+      await moveTo(() => tip(center('[data-hit="row-' + junk.id + '"]')), 480);
+      await wait(280);
+      await key("⌦");
+      merge({ deleteConfirmId: junk.id });
+      await wait(850);
+      await key("⌦");
+      setRef.current((prev) => ({ ...prev, clips: prev.clips.filter((c) => c.id !== junk.id), deleteConfirmId: null, selectedId: prev.clips[0]?.id }));
+      await wait(950);
+
+      await caption("Scene 2 / 2", "Esc to close");
+      await key("esc");
+      merge({ popoverOpen: false, clipActive: false });
+      await wait(1300);
+    }
+
+    async function main() {
+      // small initial delay so layout settles
+      await sleep(250);
+      while (c.alive) {
+        if (c.frozen) { await sleep(120); continue; }
+        const order = c.startAt === "B" ? ["B", "A"] : ["A", "B"];
+        c.startAt = null;
+        try {
+          for (const sc of order) {
+            if (c.frozen) break;
+            if (sc === "A") { resetA(); await sceneA(); }
+            else { resetB(); await sceneB(); }
+          }
+        } catch (e) {
+          if (e !== "restart" && e !== "dead") console.error(e);
+        }
+        c.restart = false;
+      }
+    }
+    main();
+
+    /* ---------------- capture / control API ---------------- */
+    function applyPreset(name) {
+      const base = {
+        clipActive: false, popoverOpen: false, search: "", clips: cloneData(),
+        selectedId: null, quickLookId: null, deleteConfirmId: null, flashId: null, footerHot: null,
+        chatPasted: false, chatSent: false, sendReady: false, keyShow: false, capShow: false, pointerHidden: true,
+      };
+      const img = DATA.find((c2) => c2.preview.includes("Screenshot"));
+      const brew = DATA.find((c2) => c2.preview.includes("brew install"));
+      const junk = DATA.find((c2) => c2.preview.includes("#0A5AD0"));
+      if (name === "popover") merge({ ...base, clipActive: true, popoverOpen: true, selectedId: img.id });
+      else if (name === "filter") merge({ ...base, clipActive: true, popoverOpen: true, search: "screen", selectedId: img.id });
+      else if (name === "quicklook") merge({ ...base, clipActive: true, popoverOpen: true, search: "screen", selectedId: img.id, quickLookId: img.id });
+      else if (name === "pin") {
+        const arr = cloneData();
+        const i = arr.findIndex((c2) => c2.id === brew.id);
+        const [it] = arr.splice(i, 1); it.pinned = true; arr.unshift(it);
+        merge({ ...base, clipActive: true, popoverOpen: true, clips: arr, selectedId: brew.id });
+      } else if (name === "delete") merge({ ...base, clipActive: true, popoverOpen: true, selectedId: junk.id, deleteConfirmId: junk.id });
+      else if (name === "paste") merge({ ...base, chatPasted: true, chatSent: true, sendReady: true });
+      else if (name === "hero") merge({ ...base, clipActive: true, popoverOpen: true, selectedId: img.id });
+    }
+
+    window.__demo = {
+      pause() { c.paused = true; },
+      play() { c.paused = false; c.frozen = false; },
+      restart() { c.startAt = "A"; c.frozen = false; c.paused = false; c.restart = true; },
+      scene(which) { c.startAt = which; c.frozen = false; c.paused = false; c.restart = true; },
+      setTheme(t) { merge({ theme: t }); },
+      setSpeed(v) { c.speed = v; },
+      freeze(name, theme) { c.frozen = true; c.restart = true; if (theme) merge({ theme }); setTimeout(() => applyPreset(name), 40); },
+      thaw() { c.frozen = false; c.paused = false; c.restart = true; merge({ pointerHidden: false }); },
+      hideChrome(v) { document.body.classList.toggle("capture", !!v); },
+    };
+
+    return () => { c.alive = false; };
+  }, []);
+
+  const filtered = s.clips.filter((c) => matches(c, s.search));
+  // In capture (FRAME) mode, only mount overlays when active so a stale closed
+  // popover can't render. In live mode keep them mounted for fade transitions.
+  const mountPopover = FRAME ? s.popoverOpen : true;
+  const mountQuickLook = FRAME ? !!s.quickLookId : true;
+
+  return (
+    <div className="canvas" data-theme={s.theme} ref={canvasRef}>
+      <div className="wallpaper" />
+      <EditorWindow />
+      <ChatWindow pasted={s.chatPasted} sent={s.chatSent} sendReady={s.sendReady} />
+      <MenuBar clipActive={s.clipActive} clock={s.clock} />
+
+      {mountPopover && (
+        <div className="popover-layer">
+          <Popover
+            open={s.popoverOpen}
+            left={POPOVER_LEFT}
+            top={POPOVER_TOP}
+            clips={filtered}
+            search={s.search}
+            selectedId={s.selectedId}
+            deleteConfirmId={s.deleteConfirmId}
+            flashId={s.flashId}
+            footerHot={s.footerHot}
+          />
+        </div>
+      )}
+
+      {mountQuickLook && <QuickLook show={!!s.quickLookId} clip={DATA.find((c) => c.id === s.quickLookId)} />}
+
+      <Caption show={s.capShow} scene={s.capScene} text={s.capText} />
+      <KeyHint show={s.keyShow} label={s.keyLabel} />
+      <Pointer x={s.curX} y={s.curY} dur={s.curDur} clicking={s.clicking} down={s.down} hidden={s.pointerHidden} />
+    </div>
+  );
+}
+
+/* ---------------- scaling + controls ---------------- */
+function Root() {
+  const [scale, setScale] = useState(1);
+  const [theme, setTheme] = useState("dark");
+  const [paused, setPaused] = useState(false);
+  const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    const fit = () => {
+      const sc = Math.min(window.innerWidth / 1280, (window.innerHeight - 70) / 800);
+      setScale(sc);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  return (
+    <React.Fragment>
+      <div className="stage">
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
+          <App />
+        </div>
+      </div>
+      <div className="controls">
+        <button onClick={() => { window.__demo.play(); setPaused(false); }} className={!paused ? "active" : ""}>▶︎ Play</button>
+        <button onClick={() => { window.__demo.pause(); setPaused(true); }} className={paused ? "active" : ""}>❚❚ Pause</button>
+        <button onClick={() => window.__demo.restart()}>↺ Restart</button>
+        <span className="ctl-sep" />
+        <button onClick={() => window.__demo.scene("A")}>Scene 1</button>
+        <button onClick={() => window.__demo.scene("B")}>Scene 2</button>
+        <span className="ctl-sep" />
+        <span className="ctl-label">Theme</span>
+        <button onClick={() => { window.__demo.setTheme("dark"); setTheme("dark"); }} className={theme === "dark" ? "active" : ""}>Dark</button>
+        <button onClick={() => { window.__demo.setTheme("light"); setTheme("light"); }} className={theme === "light" ? "active" : ""}>Light</button>
+        <span className="ctl-sep" />
+        <span className="ctl-label">Speed</span>
+        {[0.5, 1, 1.5].map((v) => (
+          <button key={v} onClick={() => { window.__demo.setSpeed(v); setSpeed(v); }} className={speed === v ? "active" : ""}>{v}×</button>
+        ))}
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
+  </script>
 </body>
 </html>
