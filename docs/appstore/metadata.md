@@ -11,6 +11,7 @@ the sandboxed App Store build doesn't include it.
 - **Support URL:** https://github.com/eplugge/Cliplet
 - **Marketing URL** (optional): https://github.com/eplugge/Cliplet
 - **App Privacy:** Data Not Collected (no account, no network, all local)
+- **Privacy Policy URL:** https://github.com/eplugge/Cliplet/blob/main/PRIVACY.md
 
 ## Promotional text (≤170 chars)
 A fast, native clipboard history that lives in your menu bar. Search everything you've
