@@ -31,14 +31,37 @@
 
 ## Features
 
-- **Lightweight menu-bar app** — no Dock icon, native SwiftUI/AppKit.
-- **Searchable history** — type to filter, click (or `Return`) to copy a clip back.
+- **Lightweight menu-bar app** — no Dock icon, native SwiftUI/AppKit. Left-click for the
+  history popover, right-click for a quick command menu.
+- **Searchable history** — type to filter (matches both contents and aliases), click or
+  `Return` to copy a clip back.
 - **Quick Look previews** — `Space` previews any clip, text included.
-- **Pin & promote** — pin clips, move-used-to-top, `⌘1`–`9` quick paste.
-- **Auto-paste (optional)** — paste straight into the previous app (needs Accessibility permission).
-- **Per-app exclusions** — secrets from chosen apps are never captured.
-- **Tunable** — configurable history size, visible rows, and max clip size.
+- **Pin, promote & reorder** — pin the clips you reuse and drag them into a manual order;
+  recent and reused clips bubble to the top; `⌘1`–`9` copy your top clips.
+- **Aliases** — label any clip (e.g. *"work login"*) from the Edit modal.
+- **Privacy controls** — blur or hide a clip's contents, exclude chosen apps, hide Cliplet
+  during screen sharing, and capture into throwaway temporary sessions. See [Privacy](#privacy).
+- **Pause capture** — stop recording the clipboard with one click when you don't want it.
+- **Auto-paste (optional)** — paste straight into the previous app (Homebrew / direct-download
+  build only; needs Accessibility permission).
+- **Tunable** — configurable history size, visible rows, max clip size, and whether new clips
+  land at the top or the bottom.
 - **Light & dark** — native materials follow your system appearance.
+
+## Privacy
+
+Everything stays on your Mac — Cliplet has **no account, no network, and no telemetry**.
+Beyond that, it gives you several ways to keep sensitive clips under control:
+
+- **Blur or hide clips** — mask a clip behind a blur or a placeholder and reveal it on demand;
+  choose how many leading and trailing characters stay visible.
+- **Aliases & display modes** — label a clip and set it to Show, Blur, or Hide from the Edit
+  modal, independent of pinning.
+- **Per-app exclusions** — never capture from the apps you choose (e.g. your password manager).
+- **Hide during screen sharing** — keep the popover and Preferences out of screen recordings
+  and shared screens.
+- **Temporary sessions** — capture into an ephemeral session whose clips are marked with an
+  hourglass, discarded when you end it (with a *Keep All* option), and purged on next launch.
 
 ## Install
 
