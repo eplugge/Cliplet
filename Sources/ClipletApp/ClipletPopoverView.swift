@@ -42,6 +42,12 @@ struct ClipletPopoverView: View {
                                         services.togglePinned(clip)
                                     }
 
+                                    if clip.ephemeral {
+                                        Button("Keep After Temporary Session") {
+                                            services.keepClip(clip.id)
+                                        }
+                                    }
+
                                     Button("Delete") {
                                         services.delete(clip)
                                     }
@@ -88,10 +94,17 @@ struct ClipletPopoverView: View {
         return CGFloat(rows) * ClipRowView.height
     }
 
+    private var headerPlaceholder: String {
+        if services.temporarySessionActive {
+            return "Temporary session — clips clear when you end it"
+        }
+        return services.isPaused ? "Clipboard tracking paused" : "Type to filter. Click to copy."
+    }
+
     private var header: some View {
         ZStack(alignment: .leading) {
             if services.history.searchQuery.isEmpty {
-                Text(services.isPaused ? "Clipboard tracking paused" : "Type to filter. Click to copy.")
+                Text(headerPlaceholder)
                     .lineLimit(1)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -111,6 +124,7 @@ struct ClipletPopoverView: View {
     private var footer: some View {
         VStack(spacing: 0) {
             footerButton(services.isPaused ? "Resume Cliplet" : "Pause Cliplet", action: services.togglePaused)
+            footerButton(services.temporarySessionActive ? "End Temporary Session" : "Start Temporary Session", action: services.toggleTemporarySession)
             footerButton("Clear", action: services.clearHistory)
             footerButton("Preferences", action: services.showSettings)
             footerButton("Quit", action: services.quit)
@@ -172,6 +186,12 @@ private struct ClipRowView: View {
     /// optional italic alias. The pin icon sits outside the value so it never blurs.
     @ViewBuilder private var valueLabel: some View {
         HStack(spacing: 5) {
+            if clip.ephemeral {
+                Image(systemName: "hourglass")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .frame(height: Self.height)
+            }
             if clip.isPinned {
                 Image(systemName: "pin.fill")
                     .rotationEffect(.degrees(45))
