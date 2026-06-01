@@ -42,7 +42,10 @@
 
 ## Install
 
-**Homebrew (recommended):**
+**Mac App Store:** [Download Cliplet](https://apps.apple.com/app/id6774704932) — sandboxed
+build (auto-paste is available only in the Homebrew/direct-download build below).
+
+**Homebrew:**
 
 ```sh
 brew install --cask eplugge/tap/cliplet
