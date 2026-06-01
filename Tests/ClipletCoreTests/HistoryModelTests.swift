@@ -114,6 +114,20 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.filter(\.isPinned).map(\.preview), ["c", "a", "b"])
     }
 
+    func testSearchMatchesAlias() {
+        let secret = makeClip("SecretPassw0rd", created: 1, used: 1)
+        let other = makeClip("unrelated note", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [secret, other])
+        history.setAlias(secret.id, "top secret password")
+
+        history.searchQuery = "top"
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["SecretPassw0rd"])
+
+        // Content search still works.
+        history.searchQuery = "unrelated"
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["unrelated note"])
+    }
+
     func testSetAliasUpdatesOnlyTargetClip() {
         let a = makeClip("a", created: 1, used: 1)
         let b = makeClip("b", created: 2, used: 2)
