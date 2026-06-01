@@ -76,6 +76,44 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.clips.first { $0.id == b.id }?.maskMode, ClipMaskMode.none)
     }
 
+    func testPinningIsAdditiveSoNewPinsGoBelowExistingPins() {
+        let a = makeClip("a", created: 1, used: 1)
+        let b = makeClip("b", created: 2, used: 2) // more recently used than a
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.setPinned(a.id, isPinned: true) // pinned first
+        history.setPinned(b.id, isPinned: true) // pinned second
+
+        // Despite b being newer, a (pinned first) stays above b.
+        XCTAssertEqual(history.filteredClips.filter(\.isPinned).map(\.preview), ["a", "b"])
+    }
+
+    func testUnpinClearsPinnedOrder() {
+        let a = makeClip("a")
+        var history = HistoryModel(settings: .defaults, clips: [a])
+
+        history.setPinned(a.id, isPinned: true)
+        XCTAssertNotNil(history.clips.first?.pinnedOrder)
+
+        history.setPinned(a.id, isPinned: false)
+        XCTAssertNil(history.clips.first?.pinnedOrder)
+    }
+
+    func testMovePinnedReordersPinnedGroup() {
+        let a = makeClip("a", created: 1, used: 1)
+        let b = makeClip("b", created: 2, used: 2)
+        let c = makeClip("c", created: 3, used: 3)
+        var history = HistoryModel(settings: .defaults, clips: [a, b, c])
+        history.setPinned(a.id, isPinned: true)
+        history.setPinned(b.id, isPinned: true)
+        history.setPinned(c.id, isPinned: true)
+        XCTAssertEqual(history.filteredClips.filter(\.isPinned).map(\.preview), ["a", "b", "c"])
+
+        history.movePinned(fromOffsets: IndexSet(integer: 2), toOffset: 0) // move c to front
+
+        XCTAssertEqual(history.filteredClips.filter(\.isPinned).map(\.preview), ["c", "a", "b"])
+    }
+
     func testSetAliasUpdatesOnlyTargetClip() {
         let a = makeClip("a", created: 1, used: 1)
         let b = makeClip("b", created: 2, used: 2)
