@@ -161,6 +161,12 @@ final class AppServices: ObservableObject {
         persistQuietly()
     }
 
+    /// `.none` excludes the window from screen sharing/recording; `.readOnly` is the normal
+    /// shareable default. Gated by the user's "hide during screen sharing" preference.
+    func windowSharingType() -> NSWindow.SharingType {
+        settings.hideDuringScreenSharing ? .none : .readOnly
+    }
+
     func togglePinned(_ clip: Clip) {
         history.setPinned(clip.id, isPinned: !clip.isPinned)
         persistQuietly()
@@ -199,7 +205,7 @@ final class AppServices: ObservableObject {
         window.contentView = hosting
         window.isReleasedWhenClosed = false
         window.center()
-        window.sharingType = .none
+        window.sharingType = windowSharingType()
         let controller = NSWindowController(window: window)
         editWindowController = controller
         controller.showWindow(nil)
@@ -260,6 +266,7 @@ final class AppServices: ObservableObject {
         window.title = "Cliplet Preferences"
         window.contentView = hostingView
         window.isReleasedWhenClosed = false
+        window.sharingType = windowSharingType()
         window.center()
         window.setFrameAutosaveName("ClipletPreferences")
 

@@ -10,6 +10,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
     public var appendNewClipsToBottom: Bool
     public var blurLeadingReveal: Int
     public var blurTrailingReveal: Int
+    public var hideDuringScreenSharing: Bool
 
     public init(
         rememberedClipLimit: Int,
@@ -20,7 +21,8 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         autoPasteAfterSelection: Bool,
         appendNewClipsToBottom: Bool = false,
         blurLeadingReveal: Int = 2,
-        blurTrailingReveal: Int = 2
+        blurTrailingReveal: Int = 2,
+        hideDuringScreenSharing: Bool = true
     ) {
         self.rememberedClipLimit = rememberedClipLimit
         self.visibleRowLimit = visibleRowLimit
@@ -31,6 +33,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         self.appendNewClipsToBottom = appendNewClipsToBottom
         self.blurLeadingReveal = blurLeadingReveal
         self.blurTrailingReveal = blurTrailingReveal
+        self.hideDuringScreenSharing = hideDuringScreenSharing
     }
 
     public static let defaults = ClipSettings(
@@ -52,6 +55,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         case appendNewClipsToBottom
         case blurLeadingReveal
         case blurTrailingReveal
+        case hideDuringScreenSharing
     }
 
     /// Decodes each field with a default fallback so settings persisted by an older version
@@ -69,5 +73,6 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         appendNewClipsToBottom = try container.decodeIfPresent(Bool.self, forKey: .appendNewClipsToBottom) ?? defaults.appendNewClipsToBottom
         blurLeadingReveal = try container.decodeIfPresent(Int.self, forKey: .blurLeadingReveal) ?? defaults.blurLeadingReveal
         blurTrailingReveal = try container.decodeIfPresent(Int.self, forKey: .blurTrailingReveal) ?? defaults.blurTrailingReveal
+        hideDuringScreenSharing = try container.decodeIfPresent(Bool.self, forKey: .hideDuringScreenSharing) ?? defaults.hideDuringScreenSharing
     }
 }
