@@ -91,7 +91,7 @@ struct ClipletPopoverView: View {
     private var header: some View {
         ZStack(alignment: .leading) {
             if services.history.searchQuery.isEmpty {
-                Text("Type to filter. Click to copy.")
+                Text(services.isPaused ? "Clipboard tracking paused" : "Type to filter. Click to copy.")
                     .lineLimit(1)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -110,6 +110,7 @@ struct ClipletPopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 0) {
+            footerButton(services.isPaused ? "Resume Cliplet" : "Pause Cliplet", action: services.togglePaused)
             footerButton("Clear", action: services.clearHistory)
             footerButton("Preferences", action: services.showSettings)
             footerButton("Quit", action: services.quit)

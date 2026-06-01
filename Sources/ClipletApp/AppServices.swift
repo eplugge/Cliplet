@@ -39,6 +39,18 @@ final class AppServices: ObservableObject {
     /// preview is up, and restore normal transient dismissal when it closes.
     var setPopoverPersistent: ((Bool) -> Void)?
 
+    /// Set by MenuBarController: refresh the menu-bar icon when the paused state changes.
+    var onPausedChanged: ((Bool) -> Void)?
+
+    /// Whether clipboard capture is paused. Transient (not persisted) — pausing should not
+    /// survive relaunch. Gates the monitor and updates the menu-bar icon.
+    @Published var isPaused: Bool = false {
+        didSet {
+            monitor?.isPaused = isPaused
+            onPausedChanged?(isPaused)
+        }
+    }
+
     /// Set to a clip id when keyboard navigation should scroll that row into view. Hover
     /// selection deliberately leaves this untouched, so the mouse never triggers a scroll.
     @Published var scrollTargetID: UUID?
@@ -165,6 +177,10 @@ final class AppServices: ObservableObject {
     /// shareable default. Gated by the user's "hide during screen sharing" preference.
     func windowSharingType() -> NSWindow.SharingType {
         settings.hideDuringScreenSharing ? .none : .readOnly
+    }
+
+    func togglePaused() {
+        isPaused.toggle()
     }
 
     func togglePinned(_ clip: Clip) {

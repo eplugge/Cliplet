@@ -141,6 +141,40 @@ final class ClipboardMonitorTests: XCTestCase {
         )
     }
 
+    func testPausedMonitorDoesNotCapture() {
+        var captured: [Clip] = []
+        let monitor = ClipboardMonitor(
+            sourceAppProvider: { nil },
+            readItem: { Self.textItem("secret") },
+            onCapture: { captured.append($0) }
+        )
+        monitor.isPaused = true
+
+        monitor.poll(changeCount: 1, now: Date())
+
+        XCTAssertTrue(captured.isEmpty)
+    }
+
+    func testResumeDoesNotReplayWhatWasCopiedWhilePaused() {
+        var captured: [Clip] = []
+        var current = "during-pause"
+        let monitor = ClipboardMonitor(
+            sourceAppProvider: { nil },
+            readItem: { Self.textItem(current) },
+            onCapture: { captured.append($0) }
+        )
+
+        monitor.isPaused = true
+        monitor.poll(changeCount: 1, now: Date())   // copied while paused
+        monitor.isPaused = false
+        monitor.poll(changeCount: 1, now: Date())   // same change — must not be captured on resume
+        XCTAssertTrue(captured.isEmpty)
+
+        current = "after-resume"
+        monitor.poll(changeCount: 2, now: Date())   // a fresh copy after resume
+        XCTAssertEqual(captured.map(\.preview), ["after-resume"])
+    }
+
     private static func textItem(
         _ text: String,
         bundleID: String? = nil,
