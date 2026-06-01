@@ -122,17 +122,35 @@ struct ClipletPopoverView: View {
     }
 
     private var footer: some View {
+        // Grouped like the right-click command menu: session controls, then history,
+        // then app actions, with inset separators between each group.
         VStack(spacing: 0) {
-            footerButton(services.isPaused ? "Resume Cliplet" : "Pause Cliplet", action: services.togglePaused)
-            footerButton(services.temporarySessionActive ? "End Temporary Session" : "Start Temporary Session", action: services.toggleTemporarySession)
-            footerButton("Clear", action: services.clearHistory)
-            footerButton("Preferences", action: services.showSettings)
-            footerButton("Quit", action: services.quit)
+            FooterButton(title: services.isPaused ? "Resume Cliplet" : "Pause Cliplet", action: services.togglePaused)
+            FooterButton(title: services.temporarySessionActive ? "End Temporary Session" : "Start Temporary Session", action: services.toggleTemporarySession)
+            footerSeparator
+            FooterButton(title: "Clear", action: services.clearHistory)
+            footerSeparator
+            FooterButton(title: "Preferences", action: services.showSettings)
+            FooterButton(title: "Quit", action: services.quit)
         }
         .padding(.vertical, 4)
     }
 
-    private func footerButton(_ title: String, action: @escaping () -> Void) -> some View {
+    private var footerSeparator: some View {
+        Divider()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+    }
+}
+
+/// A leading-aligned, full-width footer action row that highlights on hover (matching
+/// the clip rows' accent-tinted selection), so it reads as clickable.
+private struct FooterButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
         Button(action: action) {
             Text(title)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,6 +159,8 @@ struct ClipletPopoverView: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 12)
         .frame(height: 28)
+        .background(hovering ? Color.accentColor.opacity(0.18) : Color.clear)
+        .onHover { hovering = $0 }
     }
 }
 
