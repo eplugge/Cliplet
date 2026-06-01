@@ -21,7 +21,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nu.plugge.macOS.cliplet
         PRODUCT_NAME: Cliplet
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.2.0"
         CURRENT_PROJECT_VERSION: "1"
         DEVELOPMENT_TEAM: "75J677Q8TZ"
         CODE_SIGN_STYLE: Automatic
