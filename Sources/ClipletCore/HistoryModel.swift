@@ -203,11 +203,16 @@ public struct HistoryModel: Sendable {
             return lhs.isPinned
         }
 
+        // Pinned items always sort above unpinned (above). Within a group, recency drives
+        // ordering: newest-first by default, or newest-last when the user opts to append new
+        // clips to the bottom of the list.
+        let newestFirst = !settings.appendNewClipsToBottom
+
         if lhs.lastUsedAt != rhs.lastUsedAt {
-            return lhs.lastUsedAt > rhs.lastUsedAt
+            return newestFirst ? lhs.lastUsedAt > rhs.lastUsedAt : lhs.lastUsedAt < rhs.lastUsedAt
         }
 
-        return lhs.createdAt > rhs.createdAt
+        return newestFirst ? lhs.createdAt > rhs.createdAt : lhs.createdAt < rhs.createdAt
     }
 
     private func normalizedSearchText(_ text: String) -> String {

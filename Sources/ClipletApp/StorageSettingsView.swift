@@ -33,6 +33,12 @@ struct StorageSettingsView: View {
             } footer: {
                 Text("Binary payloads larger than this are not stored.")
             }
+
+            Section {
+                Toggle("Add new clips to the bottom", isOn: $services.settings.appendNewClipsToBottom)
+            } footer: {
+                Text("New clips appear at the end of the list instead of the top.")
+            }
         }
         .formStyle(.grouped)
     }
