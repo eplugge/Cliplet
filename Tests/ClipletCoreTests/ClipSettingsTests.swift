@@ -38,4 +38,34 @@ final class ClipSettingsTests: XCTestCase {
     func testDefaultAppendFlagIsFalse() {
         XCTAssertFalse(ClipSettings.defaults.appendNewClipsToBottom)
     }
+
+    func testDefaultBlurRevealCountsAreTwo() {
+        XCTAssertEqual(ClipSettings.defaults.blurLeadingReveal, 2)
+        XCTAssertEqual(ClipSettings.defaults.blurTrailingReveal, 2)
+    }
+
+    func testLegacyJSONWithoutBlurCountsDecodesToDefaults() throws {
+        let legacy = """
+        {
+          "rememberedClipLimit": 200,
+          "visibleRowLimit": 25,
+          "moveSelectedClipToTop": true,
+          "maximumPersistedClipBytes": 1048576,
+          "persistBinaryClips": true,
+          "autoPasteAfterSelection": false
+        }
+        """
+        let settings = try JSONDecoder().decode(ClipSettings.self, from: Data(legacy.utf8))
+        XCTAssertEqual(settings.blurLeadingReveal, 2)
+        XCTAssertEqual(settings.blurTrailingReveal, 2)
+    }
+
+    func testBlurRevealCountsRoundTrip() throws {
+        var settings = ClipSettings.defaults
+        settings.blurLeadingReveal = 1
+        settings.blurTrailingReveal = 4
+        let decoded = try JSONDecoder().decode(ClipSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(decoded.blurLeadingReveal, 1)
+        XCTAssertEqual(decoded.blurTrailingReveal, 4)
+    }
 }

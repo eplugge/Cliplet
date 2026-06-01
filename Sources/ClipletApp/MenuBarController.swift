@@ -52,6 +52,11 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         } else {
             // Remember who had focus so auto-paste can return there afterwards.
             previousApp = NSWorkspace.shared.frontmostApplication
+            // Each fresh open re-masks blurred clips; holding ⌥ reveals them all for this viewing.
+            services.resetReveal()
+            if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
+                services.revealAllForViewing()
+            }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }

@@ -26,6 +26,11 @@ public enum ClipPayload: Codable, Equatable, Sendable {
     case metadataOnly
 }
 
+public enum ClipMaskMode: String, Codable, Equatable, Sendable {
+    case none
+    case blurred
+}
+
 public struct Clip: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var kind: ClipKind
@@ -41,6 +46,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
     public var lastUsedAt: Date
     public var isPinned: Bool
     public var payload: ClipPayload
+    public var maskMode: ClipMaskMode
 
     public init(
         id: UUID = UUID(),
@@ -56,7 +62,8 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         createdAt: Date,
         lastUsedAt: Date,
         isPinned: Bool,
-        payload: ClipPayload
+        payload: ClipPayload,
+        maskMode: ClipMaskMode = .none
     ) {
         self.id = id
         self.kind = kind
@@ -72,6 +79,33 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         self.lastUsedAt = lastUsedAt
         self.isPinned = isPinned
         self.payload = payload
+        self.maskMode = maskMode
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, preview, contentType, filename, dimensions, byteSize, contentHash
+        case sourceAppBundleID, sourceAppName, createdAt, lastUsedAt, isPinned, payload, maskMode
+    }
+
+    /// `maskMode` decodes with a default so clips persisted before it existed still load
+    /// (a missing key would otherwise throw and lose the entire history on upgrade).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        kind = try c.decode(ClipKind.self, forKey: .kind)
+        preview = try c.decode(String.self, forKey: .preview)
+        contentType = try c.decodeIfPresent(String.self, forKey: .contentType)
+        filename = try c.decodeIfPresent(String.self, forKey: .filename)
+        dimensions = try c.decodeIfPresent(ClipDimensions.self, forKey: .dimensions)
+        byteSize = try c.decodeIfPresent(Int.self, forKey: .byteSize)
+        contentHash = try c.decodeIfPresent(String.self, forKey: .contentHash)
+        sourceAppBundleID = try c.decodeIfPresent(String.self, forKey: .sourceAppBundleID)
+        sourceAppName = try c.decodeIfPresent(String.self, forKey: .sourceAppName)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        lastUsedAt = try c.decode(Date.self, forKey: .lastUsedAt)
+        isPinned = try c.decode(Bool.self, forKey: .isPinned)
+        payload = try c.decode(ClipPayload.self, forKey: .payload)
+        maskMode = try c.decodeIfPresent(ClipMaskMode.self, forKey: .maskMode) ?? .none
     }
 
     public var searchText: String {
