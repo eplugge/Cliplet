@@ -25,6 +25,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         services.setPopoverPersistent = { [weak self] persistent in
             self?.setPopoverPersistent(persistent)
         }
+        services.onPausedChanged = { [weak self] paused in
+            self?.statusItem.button?.image = ClipletIcon.menuBarImage(paused: paused)
+        }
     }
 
     private func configureStatusItem() {
