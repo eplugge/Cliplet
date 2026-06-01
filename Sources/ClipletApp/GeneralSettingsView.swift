@@ -8,15 +8,14 @@ struct GeneralSettingsView: View {
             Section {
                 Toggle("Launch at login", isOn: $services.launchAtLogin)
                 Toggle("Move used clip to top", isOn: $services.settings.moveSelectedClipToTop)
-            }
-
-            #if !APPSTORE
-            Section {
+                #if !APPSTORE
                 Toggle("Auto-paste after selection", isOn: $services.settings.autoPasteAfterSelection)
+                #endif
             } footer: {
-                Text("Requires Accessibility permission to send the paste keystroke.")
+                #if !APPSTORE
+                Text("Auto-paste requires Accessibility permission to send the paste keystroke.")
+                #endif
             }
-            #endif
 
             Section {
                 Stepper(
@@ -28,6 +27,6 @@ struct GeneralSettingsView: View {
                 Text("How many clips are shown in the popover at once.")
             }
         }
-        .formStyle(.grouped)
+        .clipletSettingsTab()
     }
 }
