@@ -42,6 +42,13 @@ final class AppServices: ObservableObject {
     /// Set by MenuBarController: refresh the menu-bar icon when the paused state changes.
     var onPausedChanged: ((Bool) -> Void)?
 
+    /// Set by MenuBarController: refresh the menu-bar icon when the temporary-session state changes.
+    var onTemporarySessionChanged: ((Bool) -> Void)?
+
+    /// Whether a temporary session is active (transient; not persisted). New clips captured while
+    /// active are flagged ephemeral and discarded when the session ends.
+    @Published private(set) var temporarySessionActive: Bool = false
+
     /// Whether clipboard capture is paused. Transient (not persisted) — pausing should not
     /// survive relaunch. Gates the monitor and updates the menu-bar icon.
     @Published var isPaused: Bool = false {
@@ -95,6 +102,13 @@ final class AppServices: ObservableObject {
         let loadedClips = (try? store.load()) ?? []
         self.history = HistoryModel(settings: storedSettings, clips: loadedClips)
 
+        // Purge any ephemeral clips orphaned by an unclean exit during a previous temporary
+        // session — a session never resumes across a relaunch.
+        if loadedClips.contains(where: { $0.ephemeral }) {
+            history.removeEphemeralClips()
+            try? store.save(history.clips)
+        }
+
         previewController.onVisibilityChanged = { [weak self] visible in
             self?.setPopoverPersistent?(visible)
         }
@@ -113,6 +127,10 @@ final class AppServices: ObservableObject {
             try? store.writePayload(data, filename: filename)
         }
 
+        // Clips captured during a temporary session are ephemeral. The duplicate-update path in
+        // HistoryModel preserves an existing permanent clip's flag, so a re-copy won't downgrade it.
+        var clip = clip
+        clip.ephemeral = temporarySessionActive
         history.addOrUpdate(clip)
         persistQuietly()
     }
@@ -181,6 +199,60 @@ final class AppServices: ObservableObject {
 
     func togglePaused() {
         isPaused.toggle()
+    }
+
+    func keepClip(_ id: UUID) {
+        history.keepClip(id)
+        persistQuietly()
+    }
+
+    func toggleTemporarySession() {
+        temporarySessionActive ? endTemporarySession() : startTemporarySession()
+    }
+
+    func startTemporarySession() {
+        temporarySessionActive = true
+        onTemporarySessionChanged?(true)
+    }
+
+    /// Ends the session. Destructive (discards session clips), so it confirms first unless the
+    /// user turned the prompt off or there's nothing to lose.
+    func endTemporarySession() {
+        let ephemeralCount = history.clips.filter(\.ephemeral).count
+        guard settings.confirmEndTemporarySession, ephemeralCount > 0 else {
+            finishTemporarySession(keepAll: false)
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "End Temporary Session?"
+        alert.informativeText = "\(ephemeralCount) clip\(ephemeralCount == 1 ? "" : "s") captured during this session will be permanently discarded."
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Don't ask again"
+        alert.addButton(withTitle: "Discard & End")   // .alertFirstButtonReturn
+        alert.addButton(withTitle: "Keep All & End")  // .alertSecondButtonReturn
+        alert.addButton(withTitle: "Cancel")          // .alertThirdButtonReturn
+        let response = alert.runModal()
+        if alert.suppressionButton?.state == .on {
+            settings.confirmEndTemporarySession = false
+        }
+        switch response {
+        case .alertFirstButtonReturn: finishTemporarySession(keepAll: false)
+        case .alertSecondButtonReturn: finishTemporarySession(keepAll: true)
+        default: break // Cancel — session stays active
+        }
+    }
+
+    private func finishTemporarySession(keepAll: Bool) {
+        if keepAll {
+            history.keepAllEphemeralClips()
+        } else {
+            history.removeEphemeralClips()
+        }
+        temporarySessionActive = false
+        persistQuietly()
+        onTemporarySessionChanged?(false)
     }
 
     func togglePinned(_ clip: Clip) {

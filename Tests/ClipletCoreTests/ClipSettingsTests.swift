@@ -64,6 +64,27 @@ final class ClipSettingsTests: XCTestCase {
         XCTAssertTrue(ClipSettings.defaults.hideDuringScreenSharing)
     }
 
+    func testDefaultConfirmEndTemporarySessionIsTrue() {
+        XCTAssertTrue(ClipSettings.defaults.confirmEndTemporarySession)
+    }
+
+    func testLegacyJSONWithoutConfirmFlagDefaultsToTrue() throws {
+        let legacy = """
+        {
+          "rememberedClipLimit": 200, "visibleRowLimit": 25, "moveSelectedClipToTop": true,
+          "maximumPersistedClipBytes": 1048576, "persistBinaryClips": true, "autoPasteAfterSelection": false
+        }
+        """
+        let s = try JSONDecoder().decode(ClipSettings.self, from: Data(legacy.utf8))
+        XCTAssertTrue(s.confirmEndTemporarySession)
+    }
+
+    func testConfirmEndTemporarySessionRoundTrips() throws {
+        var s = ClipSettings.defaults
+        s.confirmEndTemporarySession = false
+        XCTAssertFalse(try JSONDecoder().decode(ClipSettings.self, from: JSONEncoder().encode(s)).confirmEndTemporarySession)
+    }
+
     func testLegacyJSONWithoutScreenSharingFlagDefaultsToOn() throws {
         let legacy = """
         {

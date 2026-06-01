@@ -64,6 +64,12 @@ struct PrivacySettingsView: View {
             } footer: {
                 Text("Excludes Cliplet's window from screen recordings and shared screens. Takes effect the next time the window opens. Turn off if you need to record Cliplet itself.")
             }
+
+            Section {
+                Toggle("Confirm before ending a temporary session", isOn: $services.settings.confirmEndTemporarySession)
+            } footer: {
+                Text("Show a confirmation (with a keep-all option) before discarding clips captured during a temporary session.")
+            }
         }
         .clipletSettingsTab()
     }

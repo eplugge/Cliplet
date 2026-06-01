@@ -71,6 +71,24 @@ final class ClipModelTests: XCTestCase {
         XCTAssertNil(decoded.pinnedOrder)
     }
 
+    func testDefaultEphemeralIsFalse() {
+        XCTAssertFalse(makeBasicClip().ephemeral)
+    }
+
+    func testLegacyClipJSONWithoutEphemeralDecodesAsFalse() throws {
+        let clip = makeBasicClip()
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(clip)) as! [String: Any]
+        object.removeValue(forKey: "ephemeral")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        XCTAssertFalse(try JSONDecoder().decode(Clip.self, from: legacy).ephemeral)
+    }
+
+    func testEphemeralRoundTrips() throws {
+        var clip = makeBasicClip()
+        clip.ephemeral = true
+        XCTAssertTrue(try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(clip)).ephemeral)
+    }
+
     func testLegacyClipJSONWithoutAliasDecodesAsNil() throws {
         let clip = makeBasicClip()
         var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(clip)) as! [String: Any]

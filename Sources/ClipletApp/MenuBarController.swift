@@ -25,18 +25,24 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         services.setPopoverPersistent = { [weak self] persistent in
             self?.setPopoverPersistent(persistent)
         }
-        services.onPausedChanged = { [weak self] paused in
-            self?.statusItem.button?.image = ClipletIcon.menuBarImage(paused: paused)
-        }
+        services.onPausedChanged = { [weak self] _ in self?.refreshStatusIcon() }
+        services.onTemporarySessionChanged = { [weak self] _ in self?.refreshStatusIcon() }
     }
 
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = ClipletIcon.menuBarImage()
         button.action = #selector(togglePopover)
         button.target = self
         // Receive right-clicks too, so we can show a command menu instead of the popover.
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        refreshStatusIcon()
+    }
+
+    /// Resolves the menu-bar icon by state precedence: temporary session > paused > normal.
+    private func refreshStatusIcon() {
+        let state: ClipletIcon.State = services.temporarySessionActive ? .session
+            : (services.isPaused ? .paused : .normal)
+        statusItem.button?.image = ClipletIcon.menuBarImage(state: state)
     }
 
     private func configurePopover() {
@@ -87,6 +93,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             menu.addItem(item)
         }
         add(services.isPaused ? "Resume Cliplet" : "Pause Cliplet", #selector(menuTogglePaused))
+        add(services.temporarySessionActive ? "End Temporary Session" : "Start Temporary Session", #selector(menuToggleTemporarySession))
         menu.addItem(.separator())
         add("Clear History", #selector(menuClear))
         add("Preferences…", #selector(menuPreferences), ",")
@@ -96,6 +103,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func menuTogglePaused() { services.togglePaused() }
+    @objc private func menuToggleTemporarySession() { services.toggleTemporarySession() }
     @objc private func menuClear() { services.clearHistory() }
     @objc private func menuPreferences() { services.showSettings() }
     @objc private func menuQuit() { services.quit() }
