@@ -44,11 +44,13 @@ public struct HistoryModel: Sendable {
             let id = clips[index].id
             let createdAt = clips[index].createdAt
             let isPinned = clips[index].isPinned
+            let wasEphemeral = clips[index].ephemeral
 
             clips[index] = incoming
             clips[index].id = id
             clips[index].createdAt = createdAt
             clips[index].isPinned = isPinned
+            clips[index].ephemeral = wasEphemeral // don't downgrade a permanent clip on re-capture
         } else {
             clips.append(incoming)
         }
@@ -111,6 +113,22 @@ public struct HistoryModel: Sendable {
     public mutating func setMaskMode(_ id: UUID, _ maskMode: ClipMaskMode) {
         guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
         clips[index].maskMode = maskMode
+    }
+
+    public mutating func keepClip(_ id: UUID) {
+        guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
+        clips[index].ephemeral = false
+    }
+
+    public mutating func keepAllEphemeralClips() {
+        for index in clips.indices where clips[index].ephemeral {
+            clips[index].ephemeral = false
+        }
+    }
+
+    public mutating func removeEphemeralClips() {
+        clips.removeAll { $0.ephemeral }
+        reconcileSelectionWithFilteredClips()
     }
 
     public mutating func setAlias(_ id: UUID, _ alias: String?) {

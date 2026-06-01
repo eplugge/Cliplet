@@ -128,6 +128,49 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.map(\.preview), ["unrelated note"])
     }
 
+    func testRemoveEphemeralClipsRemovesOnlyEphemeral() {
+        var a = makeClip("a", created: 1, used: 1); a.ephemeral = true
+        let b = makeClip("b", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.removeEphemeralClips()
+
+        XCTAssertEqual(history.clips.map(\.preview), ["b"])
+    }
+
+    func testKeepClipClearsEphemeralOnTargetOnly() {
+        var a = makeClip("a", created: 1, used: 1); a.ephemeral = true
+        var b = makeClip("b", created: 2, used: 2); b.ephemeral = true
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.keepClip(a.id)
+
+        XCTAssertFalse(history.clips.first { $0.id == a.id }!.ephemeral)
+        XCTAssertTrue(history.clips.first { $0.id == b.id }!.ephemeral)
+    }
+
+    func testKeepAllEphemeralClipsClearsAllAndRemovesNone() {
+        var a = makeClip("a", created: 1, used: 1); a.ephemeral = true
+        var b = makeClip("b", created: 2, used: 2); b.ephemeral = true
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.keepAllEphemeralClips()
+
+        XCTAssertEqual(history.clips.count, 2)
+        XCTAssertTrue(history.clips.allSatisfy { !$0.ephemeral })
+    }
+
+    func testAddOrUpdatePreservesEphemeralOfExistingPermanentClipOnDuplicate() {
+        let existing = makeClip("dup", created: 1, used: 1) // permanent
+        var history = HistoryModel(settings: .defaults, clips: [existing])
+
+        var incoming = makeClip("dup", created: 9, used: 9); incoming.ephemeral = true
+        history.addOrUpdate(incoming)
+
+        XCTAssertEqual(history.clips.count, 1)
+        XCTAssertFalse(history.clips[0].ephemeral)
+    }
+
     func testSetAliasUpdatesOnlyTargetClip() {
         let a = makeClip("a", created: 1, used: 1)
         let b = makeClip("b", created: 2, used: 2)
