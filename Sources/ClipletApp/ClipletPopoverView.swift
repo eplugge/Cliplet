@@ -30,6 +30,10 @@ struct ClipletPopoverView: View {
                                         services.preview(clip)
                                     }
 
+                                    Button(clip.maskMode == .blurred ? "Unblur" : "Blur") {
+                                        services.setMaskMode(clip.id, clip.maskMode == .blurred ? .none : .blurred)
+                                    }
+
                                     Button(clip.isPinned ? "Unpin" : "Pin") {
                                         services.togglePinned(clip)
                                     }
@@ -131,7 +135,7 @@ private struct ClipRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(prefix + clip.preview)
+            valueLabel
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .font(.system(size: 13))
@@ -156,6 +160,26 @@ private struct ClipRowView: View {
         // keyboard navigation does), so this never yanks the list under the mouse.
         .onHover { hovering in
             if hovering { services.hoverSelect(clip.id) }
+        }
+    }
+
+    /// Renders the clip value, gaussian-blurring the middle segment when the clip is masked
+    /// and not currently revealed. The pinned dot and the sharp edge characters stay legible.
+    @ViewBuilder private var valueLabel: some View {
+        if clip.maskMode == .blurred && !services.isRevealed(clip) {
+            let seg = BlurSegments.split(
+                clip.preview,
+                leading: services.settings.blurLeadingReveal,
+                trailing: services.settings.blurTrailingReveal
+            )
+            HStack(spacing: 0) {
+                Text(prefix + seg.prefix)
+                Text(seg.middle).blur(radius: 4.5)
+                Text(seg.suffix)
+            }
+            .clipped()
+        } else {
+            Text(prefix + clip.preview)
         }
     }
 

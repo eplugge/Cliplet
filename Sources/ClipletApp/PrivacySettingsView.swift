@@ -49,8 +49,32 @@ struct PrivacySettingsView: View {
             } footer: {
                 Text("Pick an app, or type a bundle identifier directly.")
             }
+
+            Section {
+                revealCountRow("No. of leading characters to reveal", $services.settings.blurLeadingReveal)
+                revealCountRow("No. of trailing characters to reveal", $services.settings.blurTrailingReveal)
+            } header: {
+                Text("Blurred clips")
+            } footer: {
+                Text("How many characters stay sharp at the start and end of a blurred clip. The rest is blurred; set both to 0 to blur the whole value.")
+            }
         }
         .formStyle(.grouped)
+    }
+
+    /// A label with a numeric value field plus a stepper (rather than an inline stepper label).
+    private func revealCountRow(_ title: String, _ value: Binding<Int>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("", value: value, format: .number)
+                .labelsHidden()
+                .multilineTextAlignment(.trailing)
+                .frame(width: 44)
+                .textFieldStyle(.roundedBorder)
+            Stepper("", value: value, in: 0...20)
+                .labelsHidden()
+        }
     }
 
     private func addManualBundleID() {

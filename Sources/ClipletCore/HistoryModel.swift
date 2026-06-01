@@ -72,6 +72,11 @@ public struct HistoryModel: Sendable {
         clips[index].isPinned = isPinned
     }
 
+    public mutating func setMaskMode(_ id: UUID, _ maskMode: ClipMaskMode) {
+        guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
+        clips[index].maskMode = maskMode
+    }
+
     public mutating func removeClip(_ id: UUID) {
         clips.removeAll { $0.id == id }
         if selectedClipID == id {
