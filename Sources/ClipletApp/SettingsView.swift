@@ -10,7 +10,7 @@ struct SettingsView: View {
 
             StorageSettingsView()
                 .tabItem {
-                    Label("Storage", systemImage: "internaldrive")
+                    Label("Clips", systemImage: "list.bullet.clipboard")
                 }
 
             PrivacySettingsView()
