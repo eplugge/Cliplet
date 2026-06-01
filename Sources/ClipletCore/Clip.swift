@@ -120,6 +120,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
     public var searchText: String {
         [
             preview,
+            alias,
             contentType,
             filename,
             contentHash,

@@ -52,6 +52,12 @@ final class ClipModelTests: XCTestCase {
         XCTAssertNil(makeBasicClip().alias)
     }
 
+    func testSearchTextIncludesAlias() {
+        var clip = makeBasicClip()
+        clip.alias = "Top Secret Password"
+        XCTAssertTrue(clip.searchText.contains("top secret password"))
+    }
+
     func testDefaultPinnedOrderIsNil() {
         XCTAssertNil(makeBasicClip().pinnedOrder)
     }
