@@ -26,3 +26,12 @@ struct SettingsView: View {
         .frame(width: 480)
     }
 }
+
+extension View {
+    /// Shared styling for each settings tab: a grouped form with a small bottom inset so the
+    /// last row never sits flush against the window edge — a subtle hint that taller tabs scroll.
+    func clipletSettingsTab() -> some View {
+        formStyle(.grouped)
+            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 12) }
+    }
+}
