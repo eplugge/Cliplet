@@ -7,6 +7,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
     public var maximumPersistedClipBytes: Int
     public var persistBinaryClips: Bool
     public var autoPasteAfterSelection: Bool
+    public var appendNewClipsToBottom: Bool
 
     public init(
         rememberedClipLimit: Int,
@@ -14,7 +15,8 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         moveSelectedClipToTop: Bool,
         maximumPersistedClipBytes: Int,
         persistBinaryClips: Bool,
-        autoPasteAfterSelection: Bool
+        autoPasteAfterSelection: Bool,
+        appendNewClipsToBottom: Bool = false
     ) {
         self.rememberedClipLimit = rememberedClipLimit
         self.visibleRowLimit = visibleRowLimit
@@ -22,6 +24,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         self.maximumPersistedClipBytes = maximumPersistedClipBytes
         self.persistBinaryClips = persistBinaryClips
         self.autoPasteAfterSelection = autoPasteAfterSelection
+        self.appendNewClipsToBottom = appendNewClipsToBottom
     }
 
     public static let defaults = ClipSettings(
@@ -32,4 +35,29 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         persistBinaryClips: true,
         autoPasteAfterSelection: false
     )
+
+    private enum CodingKeys: String, CodingKey {
+        case rememberedClipLimit
+        case visibleRowLimit
+        case moveSelectedClipToTop
+        case maximumPersistedClipBytes
+        case persistBinaryClips
+        case autoPasteAfterSelection
+        case appendNewClipsToBottom
+    }
+
+    /// Decodes each field with a default fallback so settings persisted by an older version
+    /// (missing newer keys) still load instead of throwing — which would otherwise reset all
+    /// of the user's settings to `.defaults` on upgrade.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = ClipSettings.defaults
+        rememberedClipLimit = try container.decodeIfPresent(Int.self, forKey: .rememberedClipLimit) ?? defaults.rememberedClipLimit
+        visibleRowLimit = try container.decodeIfPresent(Int.self, forKey: .visibleRowLimit) ?? defaults.visibleRowLimit
+        moveSelectedClipToTop = try container.decodeIfPresent(Bool.self, forKey: .moveSelectedClipToTop) ?? defaults.moveSelectedClipToTop
+        maximumPersistedClipBytes = try container.decodeIfPresent(Int.self, forKey: .maximumPersistedClipBytes) ?? defaults.maximumPersistedClipBytes
+        persistBinaryClips = try container.decodeIfPresent(Bool.self, forKey: .persistBinaryClips) ?? defaults.persistBinaryClips
+        autoPasteAfterSelection = try container.decodeIfPresent(Bool.self, forKey: .autoPasteAfterSelection) ?? defaults.autoPasteAfterSelection
+        appendNewClipsToBottom = try container.decodeIfPresent(Bool.self, forKey: .appendNewClipsToBottom) ?? defaults.appendNewClipsToBottom
+    }
 }
