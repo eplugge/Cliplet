@@ -167,9 +167,17 @@ private struct ClipRowView: View {
         }
     }
 
-    /// The clip value (masked per its display mode) followed by an optional italic alias.
+    /// A subtle pushpin (when pinned), the clip value (masked per its display mode), then an
+    /// optional italic alias. The pin icon sits outside the value so it never blurs.
     @ViewBuilder private var valueLabel: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
+            if clip.isPinned {
+                Image(systemName: "pin.fill")
+                    .rotationEffect(.degrees(45))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .frame(height: Self.height)
+            }
             maskedValue
             if let alias = aliasText {
                 Text(alias)
@@ -180,7 +188,7 @@ private struct ClipRowView: View {
     }
 
     /// The value portion: gaussian-blurred middle when blurred, a placeholder when hidden, or
-    /// the plain value when shown/revealed. The pinned dot and sharp edges stay legible.
+    /// the plain value when shown/revealed.
     @ViewBuilder private var maskedValue: some View {
         if !services.isRevealed(clip) && clip.maskMode == .blurred {
             let seg = BlurSegments.split(
@@ -189,15 +197,15 @@ private struct ClipRowView: View {
                 trailing: services.settings.blurTrailingReveal
             )
             HStack(spacing: 0) {
-                Text(prefix + seg.prefix)
+                Text(seg.prefix)
                 Text(seg.middle).blur(radius: 4.5)
                 Text(seg.suffix)
             }
             .clipped()
         } else if !services.isRevealed(clip) && clip.maskMode == .hidden {
-            Text(prefix + ClipDisplay.hiddenPlaceholder)
+            Text(ClipDisplay.hiddenPlaceholder)
         } else {
-            Text(prefix + clip.preview)
+            Text(clip.preview)
         }
     }
 
@@ -213,9 +221,5 @@ private struct ClipRowView: View {
         case .image, .file, .audio, .other:
             return true
         }
-    }
-
-    private var prefix: String {
-        clip.isPinned ? "• " : ""
     }
 }
