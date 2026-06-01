@@ -40,6 +40,17 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(Array(order.dropFirst()), ["older", "newer"]) // newest last
     }
 
+    func testSetMaskModeUpdatesOnlyTargetClip() {
+        let a = makeClip("a", created: 1, used: 1)
+        let b = makeClip("b", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.setMaskMode(a.id, .blurred)
+
+        XCTAssertEqual(history.clips.first { $0.id == a.id }?.maskMode, ClipMaskMode.blurred)
+        XCTAssertEqual(history.clips.first { $0.id == b.id }?.maskMode, ClipMaskMode.none)
+    }
+
     func testSearchFiltersPreviewAndMetadataImmediately() {
         let image = makeClip("Image: Photo123.png - PNG - 1024x768", kind: .image, contentType: "public.png", filename: "Photo123.png")
         let text = makeClip("coordinator")

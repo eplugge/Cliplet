@@ -21,4 +21,48 @@ final class ClipModelTests: XCTestCase {
 
         XCTAssertEqual(clip.searchText, "hello clipboard public.utf8-plain-text textedit com.apple.textedit")
     }
+
+    func testDefaultMaskModeIsNone() {
+        XCTAssertEqual(makeBasicClip().maskMode, .none)
+    }
+
+    /// A clip persisted before `maskMode` existed must still decode (defaulting to .none),
+    /// otherwise loading clips.json fails and the whole history is lost on upgrade.
+    func testLegacyClipJSONWithoutMaskModeDecodesAsNone() throws {
+        let clip = makeBasicClip()
+        let data = try JSONEncoder().encode(clip)
+        var object = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        object.removeValue(forKey: "maskMode") // simulate older persisted data
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(Clip.self, from: legacy)
+        XCTAssertEqual(decoded.maskMode, .none)
+        XCTAssertEqual(decoded.preview, clip.preview)
+        XCTAssertEqual(decoded.id, clip.id)
+    }
+
+    func testMaskModeRoundTrips() throws {
+        var clip = makeBasicClip()
+        clip.maskMode = .blurred
+        let decoded = try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(clip))
+        XCTAssertEqual(decoded.maskMode, .blurred)
+    }
+
+    private func makeBasicClip() -> Clip {
+        Clip(
+            id: UUID(uuidString: "00000000-0000-0000-0000-0000000000AA")!,
+            kind: .text,
+            preview: "secret",
+            contentType: "public.utf8-plain-text",
+            filename: nil,
+            dimensions: nil,
+            byteSize: 6,
+            sourceAppBundleID: nil,
+            sourceAppName: nil,
+            createdAt: Date(timeIntervalSince1970: 10),
+            lastUsedAt: Date(timeIntervalSince1970: 10),
+            isPinned: false,
+            payload: .inlineText("secret")
+        )
+    }
 }

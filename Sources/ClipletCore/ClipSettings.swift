@@ -8,6 +8,8 @@ public struct ClipSettings: Codable, Equatable, Sendable {
     public var persistBinaryClips: Bool
     public var autoPasteAfterSelection: Bool
     public var appendNewClipsToBottom: Bool
+    public var blurLeadingReveal: Int
+    public var blurTrailingReveal: Int
 
     public init(
         rememberedClipLimit: Int,
@@ -16,7 +18,9 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         maximumPersistedClipBytes: Int,
         persistBinaryClips: Bool,
         autoPasteAfterSelection: Bool,
-        appendNewClipsToBottom: Bool = false
+        appendNewClipsToBottom: Bool = false,
+        blurLeadingReveal: Int = 2,
+        blurTrailingReveal: Int = 2
     ) {
         self.rememberedClipLimit = rememberedClipLimit
         self.visibleRowLimit = visibleRowLimit
@@ -25,6 +29,8 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         self.persistBinaryClips = persistBinaryClips
         self.autoPasteAfterSelection = autoPasteAfterSelection
         self.appendNewClipsToBottom = appendNewClipsToBottom
+        self.blurLeadingReveal = blurLeadingReveal
+        self.blurTrailingReveal = blurTrailingReveal
     }
 
     public static let defaults = ClipSettings(
@@ -44,6 +50,8 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         case persistBinaryClips
         case autoPasteAfterSelection
         case appendNewClipsToBottom
+        case blurLeadingReveal
+        case blurTrailingReveal
     }
 
     /// Decodes each field with a default fallback so settings persisted by an older version
@@ -59,5 +67,7 @@ public struct ClipSettings: Codable, Equatable, Sendable {
         persistBinaryClips = try container.decodeIfPresent(Bool.self, forKey: .persistBinaryClips) ?? defaults.persistBinaryClips
         autoPasteAfterSelection = try container.decodeIfPresent(Bool.self, forKey: .autoPasteAfterSelection) ?? defaults.autoPasteAfterSelection
         appendNewClipsToBottom = try container.decodeIfPresent(Bool.self, forKey: .appendNewClipsToBottom) ?? defaults.appendNewClipsToBottom
+        blurLeadingReveal = try container.decodeIfPresent(Int.self, forKey: .blurLeadingReveal) ?? defaults.blurLeadingReveal
+        blurTrailingReveal = try container.decodeIfPresent(Int.self, forKey: .blurTrailingReveal) ?? defaults.blurTrailingReveal
     }
 }

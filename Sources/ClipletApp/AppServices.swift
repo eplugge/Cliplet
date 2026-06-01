@@ -43,6 +43,12 @@ final class AppServices: ObservableObject {
     /// selection deliberately leaves this untouched, so the mouse never triggers a scroll.
     @Published var scrollTargetID: UUID?
 
+    /// Transient reveal state for blurred clips (never persisted). A clip is shown unblurred
+    /// when `revealAll` is set (⌥-clicking the menu-bar icon) or its id is in `revealedClipIDs`
+    /// (Space on the selected blurred clip). Both reset each time the popover opens normally.
+    @Published var revealAll: Bool = false
+    @Published private(set) var revealedClipIDs: Set<UUID> = []
+
     let store: ClipStore
 
     private let storeRootDirectory: URL
@@ -152,6 +158,28 @@ final class AppServices: ObservableObject {
     func togglePinned(_ clip: Clip) {
         history.setPinned(clip.id, isPinned: !clip.isPinned)
         persistQuietly()
+    }
+
+    func setMaskMode(_ id: UUID, _ mode: ClipMaskMode) {
+        history.setMaskMode(id, mode)
+        persistQuietly()
+    }
+
+    /// A blurred clip is shown unblurred when reveal-all is on or it's been individually revealed.
+    func isRevealed(_ clip: Clip) -> Bool {
+        revealAll || revealedClipIDs.contains(clip.id)
+    }
+
+    /// Clears all reveal state — called whenever the popover opens normally, so secrets are
+    /// re-masked for each fresh viewing.
+    func resetReveal() {
+        revealAll = false
+        revealedClipIDs.removeAll()
+    }
+
+    /// Reveal every blurred clip for the current viewing (⌥-click on the menu-bar icon).
+    func revealAllForViewing() {
+        revealAll = true
     }
 
     func delete(_ clip: Clip) {
@@ -402,6 +430,17 @@ final class AppServices: ObservableObject {
     }
 
     private func previewSelectedClip() {
+        // For a blurred clip, Space reveals/re-hides it in place rather than opening Quick Look,
+        // so "Space shows the hidden thing" stays intuitive. Non-blurred clips keep Quick Look.
+        if let clip = selectedClip, clip.maskMode == .blurred, !revealAll {
+            if revealedClipIDs.contains(clip.id) {
+                revealedClipIDs.remove(clip.id)
+            } else {
+                revealedClipIDs.insert(clip.id)
+            }
+            return
+        }
+
         if previewController.isVisible {
             previewController.hide()
         } else if let clip = selectedClip {
