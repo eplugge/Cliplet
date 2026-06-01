@@ -48,6 +48,28 @@ final class ClipModelTests: XCTestCase {
         XCTAssertEqual(decoded.maskMode, .blurred)
     }
 
+    func testDefaultAliasIsNil() {
+        XCTAssertNil(makeBasicClip().alias)
+    }
+
+    func testLegacyClipJSONWithoutAliasDecodesAsNil() throws {
+        let clip = makeBasicClip()
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(clip)) as! [String: Any]
+        object.removeValue(forKey: "alias")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(Clip.self, from: legacy)
+        XCTAssertNil(decoded.alias)
+    }
+
+    func testAliasAndHiddenMaskRoundTrip() throws {
+        var clip = makeBasicClip()
+        clip.alias = "My work password"
+        clip.maskMode = .hidden
+        let decoded = try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(clip))
+        XCTAssertEqual(decoded.alias, "My work password")
+        XCTAssertEqual(decoded.maskMode, .hidden)
+    }
+
     private func makeBasicClip() -> Clip {
         Clip(
             id: UUID(uuidString: "00000000-0000-0000-0000-0000000000AA")!,

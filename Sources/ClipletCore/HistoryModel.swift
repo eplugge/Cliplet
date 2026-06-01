@@ -77,6 +77,12 @@ public struct HistoryModel: Sendable {
         clips[index].maskMode = maskMode
     }
 
+    public mutating func setAlias(_ id: UUID, _ alias: String?) {
+        guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = alias?.trimmingCharacters(in: .whitespacesAndNewlines)
+        clips[index].alias = (trimmed?.isEmpty == false) ? trimmed : nil
+    }
+
     public mutating func removeClip(_ id: UUID) {
         clips.removeAll { $0.id == id }
         if selectedClipID == id {

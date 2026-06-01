@@ -56,6 +56,7 @@ final class AppServices: ObservableObject {
     private var monitor: ClipboardMonitor?
     private var pollTimer: Timer?
     private var settingsWindowController: NSWindowController?
+    private var editWindowController: NSWindowController?
     private var pendingPayloadData: [String: Data] = [:]
     // Pointer location captured at the last keyboard navigation; used to distinguish a
     // real mouse move from a hover event fired by the list scrolling under the pointer.
@@ -163,6 +164,46 @@ final class AppServices: ObservableObject {
     func setMaskMode(_ id: UUID, _ mode: ClipMaskMode) {
         history.setMaskMode(id, mode)
         persistQuietly()
+    }
+
+    /// Applies the Edit modal's result: alias + display mode, persisted once.
+    func updateClip(id: UUID, alias: String?, maskMode: ClipMaskMode) {
+        history.setAlias(id, alias)
+        history.setMaskMode(id, maskMode)
+        persistQuietly()
+    }
+
+    func editClip(_ clip: Clip) {
+        NSApp.activate(ignoringOtherApps: true)
+        let hosting = NSHostingView(
+            rootView: EditClipView(
+                clipID: clip.id,
+                preview: clip.preview,
+                initialAlias: clip.alias ?? "",
+                initialMaskMode: clip.maskMode
+            )
+            .environmentObject(self)
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 200),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Edit Clip"
+        window.contentView = hosting
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.sharingType = .none
+        let controller = NSWindowController(window: window)
+        editWindowController = controller
+        controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func closeEditWindow() {
+        editWindowController?.close()
+        editWindowController = nil
     }
 
     /// A blurred clip is shown unblurred when reveal-all is on or it's been individually revealed.
@@ -432,7 +473,7 @@ final class AppServices: ObservableObject {
     private func previewSelectedClip() {
         // For a blurred clip, Space reveals/re-hides it in place rather than opening Quick Look,
         // so "Space shows the hidden thing" stays intuitive. Non-blurred clips keep Quick Look.
-        if let clip = selectedClip, clip.maskMode == .blurred, !revealAll {
+        if let clip = selectedClip, clip.maskMode != .none, !revealAll {
             if revealedClipIDs.contains(clip.id) {
                 revealedClipIDs.remove(clip.id)
             } else {

@@ -29,6 +29,7 @@ public enum ClipPayload: Codable, Equatable, Sendable {
 public enum ClipMaskMode: String, Codable, Equatable, Sendable {
     case none
     case blurred
+    case hidden
 }
 
 public struct Clip: Identifiable, Codable, Equatable, Sendable {
@@ -47,6 +48,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
     public var isPinned: Bool
     public var payload: ClipPayload
     public var maskMode: ClipMaskMode
+    public var alias: String?
 
     public init(
         id: UUID = UUID(),
@@ -63,7 +65,8 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         lastUsedAt: Date,
         isPinned: Bool,
         payload: ClipPayload,
-        maskMode: ClipMaskMode = .none
+        maskMode: ClipMaskMode = .none,
+        alias: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -80,11 +83,12 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         self.isPinned = isPinned
         self.payload = payload
         self.maskMode = maskMode
+        self.alias = alias
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, preview, contentType, filename, dimensions, byteSize, contentHash
-        case sourceAppBundleID, sourceAppName, createdAt, lastUsedAt, isPinned, payload, maskMode
+        case sourceAppBundleID, sourceAppName, createdAt, lastUsedAt, isPinned, payload, maskMode, alias
     }
 
     /// `maskMode` decodes with a default so clips persisted before it existed still load
@@ -106,6 +110,7 @@ public struct Clip: Identifiable, Codable, Equatable, Sendable {
         isPinned = try c.decode(Bool.self, forKey: .isPinned)
         payload = try c.decode(ClipPayload.self, forKey: .payload)
         maskMode = try c.decodeIfPresent(ClipMaskMode.self, forKey: .maskMode) ?? .none
+        alias = try c.decodeIfPresent(String.self, forKey: .alias)
     }
 
     public var searchText: String {

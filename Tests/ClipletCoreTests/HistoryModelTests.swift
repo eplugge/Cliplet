@@ -51,6 +51,17 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.clips.first { $0.id == b.id }?.maskMode, ClipMaskMode.none)
     }
 
+    func testSetAliasUpdatesOnlyTargetClip() {
+        let a = makeClip("a", created: 1, used: 1)
+        let b = makeClip("b", created: 2, used: 2)
+        var history = HistoryModel(settings: .defaults, clips: [a, b])
+
+        history.setAlias(a.id, "Work login")
+
+        XCTAssertEqual(history.clips.first { $0.id == a.id }?.alias, "Work login")
+        XCTAssertNil(history.clips.first { $0.id == b.id }?.alias)
+    }
+
     func testSearchFiltersPreviewAndMetadataImmediately() {
         let image = makeClip("Image: Photo123.png - PNG - 1024x768", kind: .image, contentType: "public.png", filename: "Photo123.png")
         let text = makeClip("coordinator")
