@@ -17,6 +17,11 @@ struct SettingsView: View {
                 .tabItem {
                     Label("Privacy", systemImage: "hand.raised")
                 }
+
+            AboutSettingsView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
         }
         .frame(width: 480)
     }
