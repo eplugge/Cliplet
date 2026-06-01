@@ -34,6 +34,10 @@ struct ClipletPopoverView: View {
                                         services.setMaskMode(clip.id, clip.maskMode == .blurred ? .none : .blurred)
                                     }
 
+                                    Button("Edit…") {
+                                        services.editClip(clip)
+                                    }
+
                                     Button(clip.isPinned ? "Unpin" : "Pin") {
                                         services.togglePinned(clip)
                                     }
@@ -163,10 +167,22 @@ private struct ClipRowView: View {
         }
     }
 
-    /// Renders the clip value, gaussian-blurring the middle segment when the clip is masked
-    /// and not currently revealed. The pinned dot and the sharp edge characters stay legible.
+    /// The clip value (masked per its display mode) followed by an optional italic alias.
     @ViewBuilder private var valueLabel: some View {
-        if clip.maskMode == .blurred && !services.isRevealed(clip) {
+        HStack(spacing: 6) {
+            maskedValue
+            if let alias = aliasText {
+                Text(alias)
+                    .italic()
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// The value portion: gaussian-blurred middle when blurred, a placeholder when hidden, or
+    /// the plain value when shown/revealed. The pinned dot and sharp edges stay legible.
+    @ViewBuilder private var maskedValue: some View {
+        if !services.isRevealed(clip) && clip.maskMode == .blurred {
             let seg = BlurSegments.split(
                 clip.preview,
                 leading: services.settings.blurLeadingReveal,
@@ -178,9 +194,16 @@ private struct ClipRowView: View {
                 Text(seg.suffix)
             }
             .clipped()
+        } else if !services.isRevealed(clip) && clip.maskMode == .hidden {
+            Text(prefix + ClipDisplay.hiddenPlaceholder)
         } else {
             Text(prefix + clip.preview)
         }
+    }
+
+    private var aliasText: String? {
+        let trimmed = clip.alias?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmed?.isEmpty == false) ? trimmed : nil
     }
 
     private var isBinary: Bool {
