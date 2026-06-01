@@ -40,6 +40,6 @@ struct StorageSettingsView: View {
                 Text("New clips appear at the end of the list instead of the top.")
             }
         }
-        .formStyle(.grouped)
+        .clipletSettingsTab()
     }
 }

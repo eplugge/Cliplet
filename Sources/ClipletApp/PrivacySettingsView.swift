@@ -59,7 +59,7 @@ struct PrivacySettingsView: View {
                 Text("How many characters stay sharp at the start and end of a blurred clip. The rest is blurred; set both to 0 to blur the whole value.")
             }
         }
-        .formStyle(.grouped)
+        .clipletSettingsTab()
     }
 
     /// A label with a numeric value field plus a stepper (rather than an inline stepper label).
