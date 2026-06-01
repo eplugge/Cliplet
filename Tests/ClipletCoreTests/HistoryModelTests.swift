@@ -19,6 +19,27 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(history.filteredClips.map(\.preview), ["Pinned", "Regular"])
     }
 
+    func testDefaultOrderingPlacesNewestFirst() {
+        let older = makeClip("older", created: 1, used: 1)
+        let newer = makeClip("newer", created: 10, used: 10)
+        let history = HistoryModel(settings: .defaults, clips: [older, newer])
+
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["newer", "older"])
+    }
+
+    func testAppendToBottomPlacesNewestLastButKeepsPinnedFirst() {
+        var settings = ClipSettings.defaults
+        settings.appendNewClipsToBottom = true
+        let older = makeClip("older", created: 1, used: 1)
+        let newer = makeClip("newer", created: 10, used: 10)
+        let pinned = makeClip("pinned", pinned: true, created: 5, used: 5)
+        let history = HistoryModel(settings: settings, clips: [newer, older, pinned])
+
+        let order = history.filteredClips.map(\.preview)
+        XCTAssertEqual(order.first, "pinned")                       // pinned always on top
+        XCTAssertEqual(Array(order.dropFirst()), ["older", "newer"]) // newest last
+    }
+
     func testSearchFiltersPreviewAndMetadataImmediately() {
         let image = makeClip("Image: Photo123.png - PNG - 1024x768", kind: .image, contentType: "public.png", filename: "Photo123.png")
         let text = makeClip("coordinator")
