@@ -35,6 +35,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         button.image = ClipletIcon.menuBarImage()
         button.action = #selector(togglePopover)
         button.target = self
+        // Receive right-clicks too, so we can show a command menu instead of the popover.
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
 
     private func configurePopover() {
@@ -50,6 +52,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 
     @objc private func togglePopover() {
         guard let button = statusItem.button else { return }
+
+        // Right-click (or Control-click) shows a quick command menu instead of the clippings.
+        if let event = NSApp.currentEvent,
+           event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+            showCommandMenu(from: button)
+            return
+        }
+
         if popover.isShown {
             popover.performClose(nil)
         } else {
@@ -67,6 +77,28 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             popover.contentViewController?.view.window?.makeKey()
         }
     }
+
+    private func showCommandMenu(from button: NSStatusBarButton) {
+        if popover.isShown { popover.performClose(nil) }
+        let menu = NSMenu()
+        func add(_ title: String, _ selector: Selector, _ key: String = "") {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
+            item.target = self
+            menu.addItem(item)
+        }
+        add(services.isPaused ? "Resume Cliplet" : "Pause Cliplet", #selector(menuTogglePaused))
+        menu.addItem(.separator())
+        add("Clear History", #selector(menuClear))
+        add("Preferences…", #selector(menuPreferences), ",")
+        menu.addItem(.separator())
+        add("Quit Cliplet", #selector(menuQuit), "q")
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 4), in: button)
+    }
+
+    @objc private func menuTogglePaused() { services.togglePaused() }
+    @objc private func menuClear() { services.clearHistory() }
+    @objc private func menuPreferences() { services.showSettings() }
+    @objc private func menuQuit() { services.quit() }
 
     private func dismissAndReturnFocus() {
         popover.performClose(nil)
