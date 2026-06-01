@@ -22,6 +22,14 @@ public struct HistoryModel: Sendable {
         reconcileSelectionWithFilteredClips()
     }
 
+    /// Pinned clips in their manual order (ignores the search query). Used by the
+    /// Settings reorder list.
+    public var pinnedClips: [Clip] {
+        clips
+            .filter(\.isPinned)
+            .sorted { ($0.pinnedOrder ?? Int.max) < ($1.pinnedOrder ?? Int.max) }
+    }
+
     public var filteredClips: [Clip] {
         let query = normalizedSearchText(searchQuery)
         let matchingClips = query.isEmpty
@@ -64,12 +72,40 @@ public struct HistoryModel: Sendable {
 
     public mutating func setPinned(_ id: UUID) {
         guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
-        clips[index].isPinned.toggle()
+        setPinned(id, isPinned: !clips[index].isPinned)
     }
 
     public mutating func setPinned(_ id: UUID, isPinned: Bool) {
         guard let index = clips.firstIndex(where: { $0.id == id }) else { return }
-        clips[index].isPinned = isPinned
+        if isPinned {
+            // Append below existing pins (additive order) the first time a clip is pinned.
+            if clips[index].pinnedOrder == nil {
+                let maxOrder = clips.compactMap(\.pinnedOrder).max() ?? -1
+                clips[index].pinnedOrder = maxOrder + 1
+            }
+            clips[index].isPinned = true
+        } else {
+            clips[index].isPinned = false
+            clips[index].pinnedOrder = nil
+        }
+    }
+
+    /// Reorders the pinned clips (in their current pinned order), renumbering `pinnedOrder`
+    /// contiguously. `fromOffsets`/`toOffset` follow SwiftUI `List.onMove` semantics.
+    public mutating func movePinned(fromOffsets: IndexSet, toOffset: Int) {
+        var pinned = clips
+            .filter(\.isPinned)
+            .sorted { ($0.pinnedOrder ?? Int.max) < ($1.pinnedOrder ?? Int.max) }
+        // Reorder mirroring SwiftUI's List.onMove semantics (no SwiftUI dependency here).
+        let moving = fromOffsets.sorted().map { pinned[$0] }
+        for index in fromOffsets.sorted(by: >) { pinned.remove(at: index) }
+        let insertAt = toOffset - fromOffsets.filter { $0 < toOffset }.count
+        pinned.insert(contentsOf: moving, at: max(0, min(insertAt, pinned.count)))
+        for (order, clip) in pinned.enumerated() {
+            if let index = clips.firstIndex(where: { $0.id == clip.id }) {
+                clips[index].pinnedOrder = order
+            }
+        }
     }
 
     public mutating func setMaskMode(_ id: UUID, _ maskMode: ClipMaskMode) {
@@ -212,6 +248,14 @@ public struct HistoryModel: Sendable {
     private func clipSort(_ lhs: Clip, _ rhs: Clip) -> Bool {
         if lhs.isPinned != rhs.isPinned {
             return lhs.isPinned
+        }
+
+        // Pinned clips keep their manual order (additive on pin, rearrangeable in Settings).
+        if lhs.isPinned && rhs.isPinned {
+            let lo = lhs.pinnedOrder ?? Int.max
+            let ro = rhs.pinnedOrder ?? Int.max
+            if lo != ro { return lo < ro }
+            return lhs.createdAt < rhs.createdAt
         }
 
         guard settings.appendNewClipsToBottom else {

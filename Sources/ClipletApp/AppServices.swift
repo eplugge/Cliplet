@@ -156,6 +156,11 @@ final class AppServices: ObservableObject {
         previewController.show(clip: clip, storeRootDirectory: storeRootDirectory)
     }
 
+    func movePinned(fromOffsets: IndexSet, toOffset: Int) {
+        history.movePinned(fromOffsets: fromOffsets, toOffset: toOffset)
+        persistQuietly()
+    }
+
     func togglePinned(_ clip: Clip) {
         history.setPinned(clip.id, isPinned: !clip.isPinned)
         persistQuietly()
