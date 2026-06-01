@@ -52,6 +52,19 @@ final class ClipModelTests: XCTestCase {
         XCTAssertNil(makeBasicClip().alias)
     }
 
+    func testDefaultPinnedOrderIsNil() {
+        XCTAssertNil(makeBasicClip().pinnedOrder)
+    }
+
+    func testLegacyClipJSONWithoutPinnedOrderDecodesAsNil() throws {
+        let clip = makeBasicClip()
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(clip)) as! [String: Any]
+        object.removeValue(forKey: "pinnedOrder")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(Clip.self, from: legacy)
+        XCTAssertNil(decoded.pinnedOrder)
+    }
+
     func testLegacyClipJSONWithoutAliasDecodesAsNil() throws {
         let clip = makeBasicClip()
         var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(clip)) as! [String: Any]
