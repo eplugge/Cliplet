@@ -58,6 +58,12 @@ struct PrivacySettingsView: View {
             } footer: {
                 Text("How many characters stay sharp at the start and end of a blurred clip. The rest is blurred; set both to 0 to blur the whole value.")
             }
+
+            Section {
+                Toggle("Hide window during screen sharing", isOn: $services.settings.hideDuringScreenSharing)
+            } footer: {
+                Text("Excludes Cliplet's window from screen recordings and shared screens. Takes effect the next time the window opens. Turn off if you need to record Cliplet itself.")
+            }
         }
         .clipletSettingsTab()
     }

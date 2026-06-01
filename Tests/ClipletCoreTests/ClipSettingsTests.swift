@@ -60,6 +60,32 @@ final class ClipSettingsTests: XCTestCase {
         XCTAssertEqual(settings.blurTrailingReveal, 2)
     }
 
+    func testDefaultHideDuringScreenSharingIsOn() {
+        XCTAssertTrue(ClipSettings.defaults.hideDuringScreenSharing)
+    }
+
+    func testLegacyJSONWithoutScreenSharingFlagDefaultsToOn() throws {
+        let legacy = """
+        {
+          "rememberedClipLimit": 200,
+          "visibleRowLimit": 25,
+          "moveSelectedClipToTop": true,
+          "maximumPersistedClipBytes": 1048576,
+          "persistBinaryClips": true,
+          "autoPasteAfterSelection": false
+        }
+        """
+        let settings = try JSONDecoder().decode(ClipSettings.self, from: Data(legacy.utf8))
+        XCTAssertTrue(settings.hideDuringScreenSharing)
+    }
+
+    func testHideDuringScreenSharingRoundTrips() throws {
+        var settings = ClipSettings.defaults
+        settings.hideDuringScreenSharing = false
+        let decoded = try JSONDecoder().decode(ClipSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertFalse(decoded.hideDuringScreenSharing)
+    }
+
     func testBlurRevealCountsRoundTrip() throws {
         var settings = ClipSettings.defaults
         settings.blurLeadingReveal = 1

@@ -58,6 +58,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 services.revealAllForViewing()
             }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // Exclude the popover from screen capture/sharing so clipboard history isn't
+            // exposed while presenting (unless the user disabled it). Recreated each show.
+            popover.contentViewController?.view.window?.sharingType = services.windowSharingType()
             popover.contentViewController?.view.window?.makeKey()
         }
     }
