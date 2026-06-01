@@ -40,6 +40,31 @@ final class HistoryModelTests: XCTestCase {
         XCTAssertEqual(Array(order.dropFirst()), ["older", "newer"]) // newest last
     }
 
+    func testAppendToBottomStillPromotesReusedClipToTop() {
+        // append-to-bottom ON + move-used-to-top ON: a re-used clip must go to the TOP,
+        // while never-used clips order oldest->newest (new captures at the bottom).
+        var settings = ClipSettings.defaults
+        settings.appendNewClipsToBottom = true
+        settings.moveSelectedClipToTop = true
+        let new1 = makeClip("new1", created: 1, used: 1)
+        let new2 = makeClip("new2", created: 2, used: 2)
+        let reused = makeClip("reused", created: 1, used: 99) // created early, used recently
+        let history = HistoryModel(settings: settings, clips: [new1, new2, reused])
+
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["reused", "new1", "new2"])
+    }
+
+    func testAppendToBottomWithMoveOffOrdersByCreationAscending() {
+        var settings = ClipSettings.defaults
+        settings.appendNewClipsToBottom = true
+        settings.moveSelectedClipToTop = false
+        let a = makeClip("a", created: 1, used: 1)
+        let b = makeClip("b", created: 2, used: 2)
+        let history = HistoryModel(settings: settings, clips: [b, a])
+
+        XCTAssertEqual(history.filteredClips.map(\.preview), ["a", "b"])
+    }
+
     func testSetMaskModeUpdatesOnlyTargetClip() {
         let a = makeClip("a", created: 1, used: 1)
         let b = makeClip("b", created: 2, used: 2)
