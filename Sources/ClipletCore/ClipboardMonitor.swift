@@ -17,6 +17,9 @@ public final class ClipboardMonitor {
 
     public var settings: ClipSettings
     public var excludedApps: ExcludedApps
+    /// While paused, polling still tracks the latest change count (so resuming never
+    /// retroactively captures what was copied during the pause) but captures nothing.
+    public var isPaused: Bool = false
 
     private let sourceAppProvider: SourceAppProvider
     private let readItem: ReadItem
@@ -50,6 +53,10 @@ public final class ClipboardMonitor {
         }
 
         lastSeenChangeCount = changeCount
+
+        guard !isPaused else {
+            return
+        }
 
         guard suppressedChangeCounts.remove(changeCount) == nil else {
             return
