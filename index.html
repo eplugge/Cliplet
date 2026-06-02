@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cliplet — Demo</title>
+  <!-- Self-contained: generated from demo/cliplet.css, demo/cliplet-ui.jsx, demo/cliplet-app.jsx. -->
+  <style>
+/* ============================================================
+   Cliplet demo — macOS scene styling
+   System fonts only (faithful to macOS). No external deps.
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --font-ui: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", "Monaco", monospace;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Stage / scaling ---- */
+.stage {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding-bottom: 72px; /* keep the canvas/caption clear of the fixed control bar */
+  box-sizing: border-box;
+  background: #000;
+}
+.canvas {
+  position: relative;
+  width: 1280px; height: 800px;
+  transform-origin: center center;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+/* ============================================================
+   THEME TOKENS
+   ============================================================ */
+.canvas[data-theme="dark"] {
+  --wallpaper:
+    radial-gradient(120% 120% at 18% 8%, #3a2f5c 0%, rgba(58,47,92,0) 46%),
+    radial-gradient(120% 130% at 92% 0%, #1d3a63 0%, rgba(29,58,99,0) 50%),
+    radial-gradient(150% 150% at 60% 120%, #2a1d3f 0%, rgba(42,29,63,0) 55%),
+    linear-gradient(160deg, #15131f 0%, #100f18 100%);
+  --menubar-bg: rgba(10, 8, 16, 0.30);
+  --menubar-fg: rgba(255,255,255,0.92);
+
+  --popover-bg: rgba(40, 40, 43, 0.66);
+  --popover-border: rgba(255,255,255,0.12);
+  --popover-inner-hl: rgba(255,255,255,0.06);
+  --text-primary: rgba(255,255,255,0.94);
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
+  --divider: rgba(255,255,255,0.10);
+  --sel: rgba(60, 98, 178, 0.55);
+  --row-hover: rgba(255,255,255,0.05);
+
+  --chat-bg: rgba(34,34,38,0.82);
+  --chat-titlebar: rgba(48,48,53,0.9);
+  --chat-fg: rgba(255,255,255,0.9);
+  --chat-sub: rgba(255,255,255,0.45);
+  --chat-input: rgba(255,255,255,0.08);
+  --chat-bubble: #2563d6;
+
+  --shadow-popover: 0 18px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  --window-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.4);
+  --popover-solid: #2c2c2f;
+  --menubar-solid: #1b1924;
+  --chat-solid: #26262b;
+  --ql-solid: #26262b;
+}
+
+.canvas[data-theme="light"] {
+  --wallpaper:
+    radial-gradient(120% 120% at 12% 6%, #ffd9a8 0%, rgba(255,217,168,0) 45%),
+    radial-gradient(120% 130% at 95% 4%, #aed3ff 0%, rgba(174,211,255,0) 50%),
+    radial-gradient(150% 150% at 70% 120%, #ffc7d9 0%, rgba(255,199,217,0) 55%),
+    linear-gradient(160deg, #f4eee7 0%, #e7e9f0 100%);
+  --menubar-bg: rgba(255,255,255,0.40);
+  --menubar-fg: rgba(20,20,24,0.88);
+
+  --popover-bg: rgba(247, 247, 249, 0.72);
+  --popover-border: rgba(0,0,0,0.10);
+  --popover-inner-hl: rgba(255,255,255,0.6);
+  --text-primary: rgba(0,0,0,0.88);
+  --text-secondary: rgba(0,0,0,0.48);
+  --text-tertiary: rgba(0,0,0,0.30);
+  --divider: rgba(0,0,0,0.09);
+  --sel: rgba(0, 122, 255, 0.20);
+  --row-hover: rgba(0,0,0,0.04);
+
+  --chat-bg: rgba(252,252,253,0.86);
+  --chat-titlebar: rgba(240,240,243,0.92);
+  --chat-fg: rgba(20,20,24,0.92);
+  --chat-sub: rgba(0,0,0,0.45);
+  --chat-input: rgba(0,0,0,0.05);
+  --chat-bubble: #2563d6;
+
+  --shadow-popover: 0 18px 50px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+  --window-shadow: 0 30px 70px rgba(0,0,0,0.22), 0 8px 20px rgba(0,0,0,0.14);
+  --popover-solid: #f3f3f5;
+  --menubar-solid: #eef0f4;
+  --chat-solid: #fbfbfc;
+  --ql-solid: #26262b;
+}
+
+.wallpaper {
+  position: absolute; inset: 0;
+  background: var(--wallpaper);
+}
+
+/* ============================================================
+   MENU BAR
+   ============================================================ */
+.menubar {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 26px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  background: var(--menubar-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  color: var(--menubar-fg);
+  z-index: 30;
+}
+.menubar .mb-left { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.menubar .mb-left .brand { font-weight: 600; }
+.menubar .mb-left .mb-menu { opacity: 0.92; }
+.menubar .mb-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.menubar .mb-icon { display: flex; align-items: center; opacity: 0.92; }
+.menubar .mb-clip {
+  position: relative;
+  border-radius: 5px;
+  padding: 2px 3px;
+  transition: background 0.2s ease;
+}
+.menubar .mb-clip.active { background: rgba(255,255,255,0.18); }
+.menubar .mb-clock { font-size: 13px; opacity: 0.92; font-variant-numeric: tabular-nums; }
+.menubar svg { display: block; }
+
+/* ============================================================
+   APP WINDOWS (editor + chat)
+   ============================================================ */
+.win {
+  position: absolute;
+  border-radius: 11px;
+  overflow: hidden;
+  box-shadow: var(--window-shadow);
+}
+.win-titlebar {
+  height: 38px;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+}
+.traffic { display: flex; gap: 8px; align-items: center; }
+.traffic span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.traffic .r { background: #ff5f57; }
+.traffic .y { background: #febc2e; }
+.traffic .g { background: #28c840; }
+.win-title { font-size: 12.5px; font-weight: 500; opacity: 0.7; }
+
+/* ---- Code editor (always dark, like a real editor) ---- */
+.editor {
+  left: 64px; top: 156px; width: 560px; height: 528px;
+  background: #1c1c22;
+  border: 0.5px solid rgba(255,255,255,0.08);
+}
+.editor .win-titlebar {
+  background: #26262e;
+  color: rgba(255,255,255,0.6);
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+}
+.editor .win-title { color: rgba(255,255,255,0.55); margin-left: 6px; }
+.editor .editor-body {
+  display: flex; font-family: var(--font-mono); font-size: 12.5px; line-height: 19px;
+  padding: 12px 0; height: calc(100% - 38px);
+}
+.editor .gutter {
+  width: 42px; text-align: right; padding-right: 12px;
+  color: rgba(255,255,255,0.22); user-select: none; flex-shrink: 0;
+}
+.editor .code { flex: 1; padding-right: 14px; color: rgba(255,255,255,0.85); white-space: pre; overflow: hidden; }
+.tk-key { color: #ff7ab2; }
+.tk-type { color: #8ad6ff; }
+.tk-str { color: #ff9d6b; }
+.tk-fn { color: #c9a3ff; }
+.tk-com { color: rgba(255,255,255,0.32); font-style: italic; }
+.tk-num { color: #7fe0b0; }
+
+/* ---- Chat / compose window (themed) ---- */
+.chat {
+  left: 766px; top: 412px; width: 446px; height: 318px;
+  background: var(--chat-bg);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border: 0.5px solid var(--popover-border);
+  display: flex; flex-direction: column;
+}
+.chat .win-titlebar {
+  background: var(--chat-titlebar);
+  color: var(--chat-fg);
+  border-bottom: 0.5px solid var(--divider);
+}
+.chat .chat-name { font-size: 13px; font-weight: 600; margin-left: 6px; }
+.chat .chat-body { flex: 1; padding: 16px 16px 8px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; overflow: hidden; }
+.chat .msg { max-width: 78%; padding: 8px 12px; border-radius: 16px; font-size: 13px; line-height: 1.35; }
+.chat .msg.them { align-self: flex-start; background: var(--chat-input); color: var(--chat-fg); border-bottom-left-radius: 5px; }
+.chat .msg.me { align-self: flex-end; background: var(--chat-bubble); color: #fff; border-bottom-right-radius: 5px; }
+.chat .msg.me.img-bubble { padding: 5px; }
+.chat .bubble-img {
+  width: 184px; height: 116px; border-radius: 11px; display: block;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+  position: relative; overflow: hidden;
+}
+.chat .compose {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-top: 0.5px solid var(--divider);
+}
+.chat .compose-field {
+  flex: 1; min-height: 34px;
+  background: var(--chat-input);
+  border-radius: 17px;
+  padding: 7px 14px;
+  font-size: 13px; color: var(--chat-fg);
+  display: flex; align-items: center; gap: 8px;
+}
+.chat .compose-field .placeholder { color: var(--chat-sub); }
+.chat .paste-thumb {
+  width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+  position: relative; overflow: hidden;
+  animation: pop-in 0.32s cubic-bezier(0.34,1.56,0.64,1);
+}
+.chat .send-btn {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--chat-bubble); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.45; transition: opacity 0.2s ease;
+}
+.chat .send-btn.ready { opacity: 1; }
+
+/* faux screenshot artwork shared by quicklook + chat thumbs */
+.shot-art::before, .shot-art::after { content: ""; position: absolute; }
+.shot-art::before {
+  left: 12%; top: 22%; width: 30%; height: 18%;
+  background: rgba(255,255,255,0.85); border-radius: 4px;
+  box-shadow: 0 220% 0 rgba(255,255,255,0.5), 0 440% 0 rgba(255,255,255,0.3);
+}
+.shot-art::after {
+  right: 12%; bottom: 18%; width: 34%; height: 34%;
+  background: rgba(255,255,255,0.22); border-radius: 50%;
+}
+
+/* ============================================================
+   CLIPLET POPOVER
+   ============================================================ */
+.popover-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+.popover-wrap {
+  position: absolute;
+  transform-origin: top center;
+  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.2,0.9,0.3,1.2);
+}
+.popover-wrap.closed { opacity: 0; transform: scale(0.94) translateY(-6px); pointer-events: none; }
+.popover-wrap.open   { opacity: 1; transform: scale(1) translateY(0); }
+
+.notch {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 9px; overflow: hidden;
+}
+.notch::before {
+  content: ""; position: absolute; left: 50%; top: 4px;
+  width: 16px; height: 16px; transform: translateX(-50%) rotate(45deg);
+  background: var(--popover-bg);
+  border-left: 0.5px solid var(--popover-border);
+  border-top: 0.5px solid var(--popover-border);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+}
+
+.popover {
+  width: 440px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(34px) saturate(1.9);
+  -webkit-backdrop-filter: blur(34px) saturate(1.9);
+  border: 0.5px solid var(--popover-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-popover), inset 0 0.5px 0 var(--popover-inner-hl);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.po-header {
+  height: 36px; display: flex; align-items: center;
+  padding: 0 12px; font-size: 13px;
+}
+.po-header .ph-placeholder { color: var(--text-secondary); }
+.po-header .ph-query { color: var(--text-primary); }
+.po-header .ph-caret {
+  display: inline-block; width: 1px; height: 15px; margin-left: 1px;
+  background: var(--text-primary);
+  animation: blink 1s steps(1) infinite;
+  vertical-align: -3px;
+}
+.po-divider { height: 0.5px; background: var(--divider); }
+
+.po-list { padding: 0; }
+.po-row {
+  height: 23px; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; font-size: 13px;
+  position: relative;
+}
+.po-row.selected { background: var(--sel); }
+.po-row .pr-text {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary);
+}
+.po-row.binary .pr-text { color: var(--text-secondary); }
+.po-row .pr-pin { color: var(--text-primary); margin-right: -2px; }
+.po-row .pr-key { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.po-row.confirm-delete { background: rgba(255, 69, 58, 0.28); }
+.po-row.confirm-delete .pr-text { color: #fff; }
+.po-row .pr-del { font-size: 11px; color: #fff; flex-shrink: 0; font-weight: 500; }
+.po-row.flash { animation: row-flash 0.5s ease; }
+
+.po-footer { padding: 4px 0; }
+.po-foot-btn {
+  height: 28px; display: flex; align-items: center;
+  padding: 0 12px; font-size: 13px; color: var(--text-primary);
+}
+.po-foot-btn.hot { background: var(--row-hover); }
+
+/* ============================================================
+   QUICK LOOK
+   ============================================================ */
+.quicklook-scrim {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.28);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.quicklook-scrim.show { opacity: 1; }
+.quicklook {
+  width: 460px;
+  background: rgba(30,30,33,0.92);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border: 0.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+  overflow: hidden;
+  transform: scale(0.9); transition: transform 0.24s cubic-bezier(0.2,0.9,0.3,1.25);
+}
+.quicklook-scrim.show .quicklook { transform: scale(1); }
+.ql-bar {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  position: relative;
+  background: rgba(255,255,255,0.06);
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92); font-size: 13px; font-weight: 500;
+}
+.ql-bar .ql-tl { position: absolute; left: 12px; display: flex; gap: 7px; }
+.ql-bar .ql-tl span { width: 11px; height: 11px; border-radius: 50%; }
+.ql-bar .ql-share { position: absolute; right: 14px; color: rgba(255,255,255,0.5); }
+.ql-body { padding: 22px; }
+.ql-image {
+  width: 100%; height: 256px; border-radius: 8px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #2b6cf0 0%, #7a3ff0 55%, #c23ad6 100%);
+}
+.ql-meta { margin-top: 14px; display: flex; justify-content: space-between; color: rgba(255,255,255,0.55); font-size: 12px; }
+
+/* ============================================================
+   POINTER + KEY HINT + CAPTION
+   ============================================================ */
+.pointer {
+  position: absolute; z-index: 70; top: 0; left: 0;
+  width: 24px; height: 24px;
+  transition: left var(--cur-dur, 0.6s) cubic-bezier(0.4,0,0.2,1),
+              top var(--cur-dur, 0.6s) cubic-bezier(0.4,0,0.2,1);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45));
+  pointer-events: none;
+}
+.pointer .click-ring {
+  position: absolute; left: 2px; top: 2px; width: 18px; height: 18px;
+  border-radius: 50%; border: 2px solid rgba(255,255,255,0.9);
+  opacity: 0; transform: scale(0.3);
+}
+.pointer.clicking .click-ring { animation: click-ripple 0.4s ease-out; }
+.pointer.down { transform: scale(0.86); }
+
+.keyhint {
+  position: absolute; z-index: 65; bottom: 96px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0; transition: opacity 0.18s ease;
+}
+.keyhint.show { opacity: 1; }
+.keycap {
+  min-width: 38px; height: 38px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(248,248,250,0.96);
+  border-radius: 9px;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25), 0 5px 12px rgba(0,0,0,0.35);
+  color: #1a1a1f; font-size: 15px; font-weight: 600;
+  border: 0.5px solid rgba(0,0,0,0.1);
+}
+
+.caption {
+  position: absolute; z-index: 65; bottom: 40px; left: 50%; transform: translateX(-50%);
+  padding: 9px 18px;
+  background: rgba(10,10,14,0.62);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 0.5px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  color: rgba(255,255,255,0.95); font-size: 15px; font-weight: 500;
+  white-space: nowrap;
+  opacity: 0; transition: opacity 0.25s ease;
+  letter-spacing: 0.1px;
+}
+.caption.show { opacity: 1; }
+.caption .scene-tag {
+  color: rgba(255,255,255,0.5); font-weight: 600; margin-right: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   CONTROLS (outside scaled canvas)
+   ============================================================ */
+.controls {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 200;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 9px;
+  background: rgba(22,22,26,0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  font-family: var(--font-ui);
+}
+.controls button {
+  appearance: none; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.9);
+  font-size: 12.5px; font-weight: 500;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-ui);
+  transition: background 0.15s ease;
+}
+.controls button:hover { background: rgba(255,255,255,0.16); }
+.controls button.active { background: #2563d6; color: #fff; }
+.controls .ctl-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.14); margin: 0 3px; }
+.controls .ctl-label { color: rgba(255,255,255,0.4); font-size: 11px; padding: 0 4px; }
+
+body.capture .controls { display: none !important; }
+
+/* save_screenshot is a DOM clone that can't paint backdrop-filter — swap blur for
+   solid backgrounds in capture frames. Closed overlays are unmounted in JS, so no
+   opacity/visibility hacks are needed here. The live demo keeps the real blur. */
+body.capture .menubar { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--menubar-solid); }
+body.capture .popover { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .notch::before { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .chat { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--chat-solid); }
+body.capture .quicklook { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--ql-solid); }
+body.capture .quicklook-scrim { transition: none !important; }
+body.capture .popover-wrap { transition: none !important; }
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+@keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@keyframes click-ripple {
+  0% { opacity: 0.9; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes row-flash {
+  0% { background: rgba(255,255,255,0); }
+  35% { background: rgba(120,160,255,0.4); }
+  100% { background: var(--sel); }
+}
+
+/* ============================================================
+   0.2.0 — masked clips (blur / hide / alias / hourglass / pin)
+   ============================================================ */
+.po-row .pr-val { display: inline-flex; align-items: center; min-width: 0; }
+.po-row .pr-val .seg-prefix,
+.po-row .pr-val .seg-suffix { white-space: pre; }
+.po-row .pr-val .seg-mid {
+  white-space: pre;
+  filter: blur(4.5px);
+  transition: filter 0.32s ease;
+}
+.po-row .pr-val.revealed .seg-mid { filter: blur(0); }
+.po-row .pr-hidden { letter-spacing: 1px; }
+.po-row .pr-alias {
+  font-style: italic;
+  color: var(--text-secondary);
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.po-row .pr-lead {
+  display: inline-flex; align-items: center;
+  color: var(--text-secondary);
+  margin-right: 1px; flex-shrink: 0;
+}
+.po-row .pr-lead svg { display: block; }
+.po-row .pr-pin-icon { transform: rotate(45deg); color: var(--text-secondary); }
+
+/* search query can highlight an alias match */
+.po-header .ph-alias-hint { color: var(--text-secondary); font-style: italic; margin-left: 8px; }
+
+/* ============================================================
+   0.2.0 — grouped footer (separators + hover, mirrors command menu)
+   ============================================================ */
+.po-foot-sep { height: 0.5px; background: var(--divider); margin: 4px 12px; }
+
+/* ============================================================
+   0.2.0 — menu-bar states (paused / temporary session / recording)
+   ============================================================ */
+.menubar .mb-clip.paused,
+.menubar .mb-clip.session { background: rgba(255,255,255,0.10); }
+.menubar .mb-rec {
+  display: flex; align-items: center; gap: 6px;
+  height: 17px; padding: 0 8px 0 7px;
+  border-radius: 9px;
+  background: rgba(255, 96, 70, 0.92);
+  color: #fff; font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.1px;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.12);
+  animation: rec-in 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.menubar .mb-rec .rec-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #fff;
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+@keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes rec-in { 0% { opacity: 0; transform: scale(0.7); } 100% { opacity: 1; transform: scale(1); } }
+
+/* ============================================================
+   0.2.0 — command menu (right-click) + per-row context menu
+   ============================================================ */
+.menu-layer { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
+.ctx-menu {
+  position: absolute;
+  min-width: 184px;
+  padding: 5px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(34px) saturate(1.9);
+  -webkit-backdrop-filter: blur(34px) saturate(1.9);
+  border: 0.5px solid var(--popover-border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-popover), inset 0 0.5px 0 var(--popover-inner-hl);
+  color: var(--text-primary);
+  transform-origin: top left;
+  animation: ctx-in 0.13s ease-out;
+}
+@keyframes ctx-in { 0% { opacity: 0; transform: scale(0.96) translateY(-3px); } 100% { opacity: 1; transform: none; } }
+.ctx-item {
+  height: 24px; display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; padding: 0 9px; border-radius: 5px;
+  font-size: 13px; color: var(--text-primary);
+}
+.ctx-item .ci-key { color: var(--text-tertiary); font-size: 12px; }
+.ctx-item.hot { background: #2563d6; color: #fff; }
+.ctx-item.hot .ci-key { color: rgba(255,255,255,0.8); }
+.ctx-item.destructive { color: #ff5f57; }
+.ctx-item.destructive.hot { background: #d83a32; color: #fff; }
+.ctx-sep { height: 0.5px; background: var(--divider); margin: 5px 8px; }
+
+/* ============================================================
+   0.2.0 — Edit modal (alias + Show / Blur / Hide)
+   ============================================================ */
+.edit-scrim {
+  position: absolute; inset: 0; z-index: 60;
+  background: rgba(0,0,0,0.28);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.edit-scrim.show { opacity: 1; }
+.edit-modal {
+  width: 380px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 0.5px solid var(--popover-border);
+  border-radius: 14px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.5), inset 0 0.5px 0 var(--popover-inner-hl);
+  color: var(--text-primary);
+  padding: 20px;
+  transform: scale(0.92); transition: transform 0.24s cubic-bezier(0.2,0.9,0.3,1.25);
+}
+.edit-scrim.show .edit-modal { transform: scale(1); }
+.edit-modal .em-preview {
+  font-size: 12px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 14px;
+}
+.edit-group {
+  background: var(--row-hover);
+  border: 0.5px solid var(--divider);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.edit-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; min-height: 38px;
+}
+.edit-row + .edit-row { border-top: 0.5px solid var(--divider); }
+.edit-row .er-label { font-size: 13px; color: var(--text-primary); flex-shrink: 0; }
+.edit-row .er-field {
+  flex: 1; height: 24px;
+  background: var(--popover-bg);
+  border: 0.5px solid var(--divider);
+  border-radius: 6px;
+  display: flex; align-items: center;
+  padding: 0 9px; font-size: 13px;
+  color: var(--text-primary);
+}
+.edit-row .er-field.focus { box-shadow: 0 0 0 3px rgba(37,99,214,0.35); border-color: #2563d6; }
+.edit-row .er-field .ef-placeholder { color: var(--text-tertiary); }
+.edit-row .er-field .ef-caret {
+  display: inline-block; width: 1px; height: 15px; margin-left: 1px;
+  background: var(--text-primary); vertical-align: -3px;
+  animation: blink 1s steps(1) infinite;
+}
+.edit-row .er-seg {
+  flex: 1; display: flex;
+  background: var(--row-hover);
+  border: 0.5px solid var(--divider);
+  border-radius: 7px; padding: 2px;
+  gap: 2px;
+}
+.er-seg .seg-opt {
+  flex: 1; text-align: center; height: 22px; line-height: 22px;
+  font-size: 12.5px; border-radius: 5px;
+  color: var(--text-primary); transition: background 0.15s ease;
+}
+.er-seg .seg-opt.on {
+  background: #2563d6; color: #fff; font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.edit-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 16px;
+}
+.edit-btn {
+  height: 30px; padding: 0 16px; border-radius: 7px;
+  font-size: 13px; font-weight: 500;
+  display: flex; align-items: center;
+  border: 0.5px solid var(--divider);
+  background: var(--row-hover); color: var(--text-primary);
+}
+.edit-btn.primary { background: #2563d6; color: #fff; border-color: transparent; box-shadow: 0 1px 3px rgba(37,99,214,0.5); }
+.edit-btn.hot { filter: brightness(1.08); }
+
+/* ============================================================
+   0.2.0 — confirm dialog (end temporary session)
+   ============================================================ */
+.dialog-scrim {
+  position: absolute; inset: 0; z-index: 62;
+  background: rgba(0,0,0,0.32);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+}
+.dialog-scrim.show { opacity: 1; }
+.dialog {
+  width: 280px;
+  background: var(--popover-bg);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 0.5px solid var(--popover-border);
+  border-radius: 14px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.55), inset 0 0.5px 0 var(--popover-inner-hl);
+  color: var(--text-primary);
+  padding: 18px 18px 14px;
+  text-align: center;
+  transform: scale(0.9); transition: transform 0.22s cubic-bezier(0.2,0.9,0.3,1.25);
+}
+.dialog-scrim.show .dialog { transform: scale(1); }
+.dialog .dlg-icon {
+  width: 56px; height: 56px; margin: 0 auto 12px;
+  border-radius: 13px;
+  background: linear-gradient(160deg, #4a8cff 0%, #1f5fe0 60%, #1647b8 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(20,60,160,0.45), inset 0 1px 0 rgba(255,255,255,0.35);
+  color: #fff;
+}
+.dialog .dlg-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.dialog .dlg-msg { font-size: 12px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 12px; }
+.dialog .dlg-check {
+  display: flex; align-items: center; gap: 7px; justify-content: center;
+  font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;
+}
+.dialog .dlg-check .box {
+  width: 14px; height: 14px; border-radius: 4px;
+  border: 1px solid var(--text-tertiary);
+  display: flex; align-items: center; justify-content: center;
+}
+.dialog .dlg-check .box.on { background: #2563d6; border-color: #2563d6; color: #fff; }
+.dialog .dlg-actions { display: flex; flex-direction: column; gap: 8px; }
+.dialog .dlg-btn {
+  height: 30px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  border: 0.5px solid var(--divider);
+  background: var(--row-hover); color: var(--text-primary);
+}
+.dialog .dlg-btn.primary { background: #2563d6; color: #fff; border-color: transparent; }
+.dialog .dlg-btn.hot { filter: brightness(1.08); }
+
+/* ============================================================
+   0.2.0 — screen-sharing privacy ("what others see")
+   ============================================================ */
+.share-pane {
+  position: absolute; z-index: 58;
+  left: 60px; top: 196px; width: 384px;
+  border-radius: 12px; overflow: hidden;
+  background: #16161a;
+  border: 0.5px solid rgba(255,255,255,0.14);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  opacity: 0; transform: translateY(10px) scale(0.97);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2,0.9,0.3,1.2);
+}
+.share-pane.show { opacity: 1; transform: none; }
+.share-bar {
+  height: 30px; display: flex; align-items: center; gap: 8px;
+  padding: 0 11px; background: #242429;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.66); font-size: 11.5px; font-weight: 600;
+}
+.share-bar .sb-dot { width: 9px; height: 9px; border-radius: 50%; }
+.share-bar .sb-rec { margin-left: auto; display: flex; align-items: center; gap: 5px; color: #ff8a7a; font-weight: 600; }
+.share-bar .sb-rec .d { width: 7px; height: 7px; border-radius: 50%; background: #ff5f46; animation: rec-pulse 1.4s ease-in-out infinite; }
+.share-body { position: relative; height: 216px; background: #0e0d14; }
+.share-mini { position: absolute; inset: 0; }
+.share-mini .mini-wall {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 120% at 18% 8%, #3a2f5c 0%, rgba(58,47,92,0) 46%),
+    radial-gradient(120% 130% at 92% 0%, #1d3a63 0%, rgba(29,58,99,0) 50%),
+    linear-gradient(160deg, #15131f 0%, #100f18 100%);
+}
+.share-mini .mini-menubar {
+  position: absolute; top: 0; left: 0; right: 0; height: 13px;
+  background: rgba(10,8,16,0.5);
+}
+.share-mini .mini-win {
+  position: absolute; border-radius: 5px;
+  background: rgba(40,40,46,0.9);
+  border: 0.5px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.share-mini .mini-win .mw-bar { height: 9px; border-radius: 5px 5px 0 0; background: rgba(255,255,255,0.06); }
+.share-redact {
+  position: absolute; top: 17px; right: 18px; width: 150px; height: 150px;
+  border-radius: 7px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 7px, rgba(255,255,255,0.015) 7px 14px),
+    rgba(8,8,12,0.55);
+  border: 1px dashed rgba(255,255,255,0.22);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  color: rgba(255,255,255,0.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.share-redact .sr-icon { color: rgba(255,255,255,0.5); }
+.share-redact .sr-label { font-size: 10.5px; font-weight: 600; text-align: center; line-height: 1.3; max-width: 120px; }
+
+/* ============================================================
+   0.2.0 — capture-mode solid fallbacks (backdrop-filter can't clone)
+   ============================================================ */
+body.capture .ctx-menu { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); animation: none; }
+body.capture .edit-modal { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .dialog { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--popover-solid); }
+body.capture .edit-scrim, body.capture .dialog-scrim, body.capture .share-pane { transition: none !important; }
+body.capture .edit-modal .er-field { background: var(--menubar-solid); }
+body.capture .share-redact { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.capture .mb-rec { animation: none; }
+body.capture .mb-rec .rec-dot, body.capture .share-bar .sb-rec .d { animation: none; }
+
+/* ============================================================
+   CINEMATIC CAMERA + HUD (demo-video framing)
+   ============================================================ */
+.world { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+
+.hud { position: absolute; inset: 0; z-index: 140; pointer-events: none; overflow: hidden; }
+.hud-scrim {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+  background: linear-gradient(180deg, rgba(6,6,12,0) 0%, rgba(6,6,12,0.5) 52%, rgba(6,6,12,0.82) 100%);
+  opacity: 0; transition: opacity 0.45s ease;
+}
+.hud-scrim.show { opacity: 1; }
+
+.bigcap {
+  position: absolute; left: 6%; right: 6%; bottom: 6.5%;
+  display: flex; flex-direction: column; align-items: center; gap: 0.32em;
+  text-align: center;
+  font-size: 52px;
+}
+.bigcap .bc-step {
+  font-size: 0.34em;
+  letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700;
+  color: #7fb0ff;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.45s cubic-bezier(0.2,0.8,0.2,1);
+}
+.bigcap .bc-text {
+  font-size: 1em;
+  font-weight: 600; color: #fff; line-height: 1.14; letter-spacing: -0.012em;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.55);
+  text-wrap: balance; max-width: 17em;
+  opacity: 0; transform: translateY(18px);
+  transition: opacity 0.42s ease, transform 0.5s cubic-bezier(0.2,0.8,0.2,1);
+}
+.bigcap.show .bc-step { opacity: 1; transform: none; transition-delay: 0.04s; }
+.bigcap.show .bc-text { opacity: 1; transform: none; transition-delay: 0.1s; }
+
+.hud-key {
+  position: absolute; left: 0; right: 0; bottom: 30%;
+  display: flex; justify-content: center; gap: 0.4em;
+  font-size: 42px;
+  opacity: 0; transition: opacity 0.18s ease;
+}
+.hud-key.show { opacity: 1; }
+.hud-key .kc {
+  background: rgba(248,248,250,0.97); color: #16161b; font-weight: 600;
+  border-radius: 0.26em; padding: 0 0.42em; min-width: 0.62em; height: 1.05em;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0.16em 0 rgba(0,0,0,0.25), 0 0.32em 0.7em rgba(0,0,0,0.42);
+  border: 0.5px solid rgba(0,0,0,0.1);
+}
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel">
+/* global React */
+const { useRef } = React;
+
+/* ---------- tiny inline icons (simple shapes only) ---------- */
+function Paperclip({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 11.5l-8.1 8.1a4.6 4.6 0 0 1-6.5-6.5l8.4-8.4a3 3 0 0 1 4.3 4.3l-8.3 8.3a1.4 1.4 0 0 1-2-2l7.6-7.6" />
+    </svg>
+  );
+}
+
+/* paperclip with two pause bars knocked over the centre (matches ClipletIcon.pausedImage) */
+function PaperclipPaused({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M20 11.5l-8.1 8.1a4.6 4.6 0 0 1-6.5-6.5l8.4-8.4a3 3 0 0 1 4.3 4.3l-8.3 8.3a1.4 1.4 0 0 1-2-2l7.6-7.6"
+        stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="8.0" y="8.4" width="2.6" height="7.2" rx="1.1" fill="currentColor" stroke="var(--menubar-solid, #1b1924)" strokeWidth="1.1" />
+      <rect x="12.0" y="8.4" width="2.6" height="7.2" rx="1.1" fill="currentColor" stroke="var(--menubar-solid, #1b1924)" strokeWidth="1.1" />
+    </svg>
+  );
+}
+
+/* paperclip wearing a spy fedora + round shades (matches ClipletIcon.sessionImage "spy") */
+function PaperclipSpy({ size = 16 }) {
+  const h = size * 1.4;
+  return (
+    <svg width={size} height={h} viewBox="0 0 24 34" fill="none" style={{ marginTop: -(h - size) }}>
+      <g transform="translate(0,10)">
+        <path d="M20 11.5l-8.1 8.1a4.6 4.6 0 0 1-6.5-6.5l8.4-8.4a3 3 0 0 1 4.3 4.3l-8.3 8.3a1.4 1.4 0 0 1-2-2l7.6-7.6"
+          stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      {/* fedora */}
+      <path d="M6.2 9.5 Q12 6.4 17.8 9.5 Q12 11.0 6.2 9.5 Z" fill="currentColor" />
+      <path d="M8.4 9.2 L9.2 3.2 Q12 2.0 14.8 3.2 L15.6 9.2 Z" fill="currentColor" />
+      <rect x="8.7" y="7.6" width="6.6" height="1.4" rx="0.4" fill="var(--menubar-solid, #1b1924)" />
+      {/* round shades sitting on the clip's upper loop */}
+      <g transform="translate(0,13.6)">
+        <circle cx="8.7" cy="2.0" r="2.7" fill="currentColor" />
+        <circle cx="15.3" cy="2.0" r="2.7" fill="currentColor" />
+        <rect x="10.9" y="1.5" width="2.2" height="1.2" fill="currentColor" />
+        <circle cx="8.7" cy="2.0" r="1.5" fill="var(--menubar-solid, #1b1924)" />
+        <circle cx="15.3" cy="2.0" r="1.5" fill="var(--menubar-solid, #1b1924)" />
+      </g>
+    </svg>
+  );
+}
+
+function HourglassIcon({ size = 11 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12M6 21h12M7 3c0 5 4 6 5 9 1-3 5-4 5-9M7 21c0-5 4-6 5-9 1 3 5 4 5 9" />
+    </svg>
+  );
+}
+
+function PinIcon({ size = 11 }) {
+  return (
+    <svg className="pr-pin-icon" width={size} height={size} viewBox="0 0 24 24"
+      fill="currentColor">
+      <path d="M14.5 2.3l7.2 7.2-1.5 1.5-1 -.4-4.1 4.1.3 4.6-1.4 1.4-3.9-3.9-4.6 4.6-1.2-1.2 4.6-4.6L3.6 12l1.4-1.4 4.6.3 4.1-4.1-.4-1z" />
+    </svg>
+  );
+}
+
+function MbGlyphs() {
+  return (
+    <React.Fragment>
+      <span className="mb-icon" title="Wi-Fi">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 18.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zM5.6 13.4a9 9 0 0 1 12.8 0l-1.7 1.7a6.6 6.6 0 0 0-9.4 0l-1.7-1.7zM2.4 10.2a13.5 13.5 0 0 1 19.2 0l-1.7 1.7a11.1 11.1 0 0 0-15.8 0l-1.7-1.7z" />
+        </svg>
+      </span>
+      <span className="mb-icon" title="Battery">
+        <svg width="26" height="14" viewBox="0 0 30 14" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <rect x="1" y="2" width="23" height="10" rx="3" />
+          <rect x="3" y="4" width="16" height="6" rx="1.5" fill="currentColor" stroke="none" />
+          <path d="M26 5v4c1.2-.3 1.2-3.7 0-4z" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+      <span className="mb-icon" title="Control Center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M4 8h16M4 16h16" /><circle cx="9" cy="8" r="2.2" fill="currentColor" stroke="none" /><circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+    </React.Fragment>
+  );
+}
+
+/* ---------- Menu bar ---------- */
+function MenuBar({ clipActive, clock, iconState = "normal", recording = false }) {
+  return (
+    <div className="menubar">
+      <div className="mb-left">
+        <Paperclip size={15} />
+        <span className="brand">Cliplet</span>
+        <span className="mb-menu">File</span>
+        <span className="mb-menu">Edit</span>
+        <span className="mb-menu">View</span>
+        <span className="mb-menu">Help</span>
+      </div>
+      <div className="mb-right">
+        {recording && (
+          <span className="mb-rec"><span className="rec-dot" />Screen Sharing</span>
+        )}
+        <MbGlyphs />
+        <span data-hit="clip-icon"
+          className={"mb-icon mb-clip"
+            + (clipActive ? " active" : "")
+            + (iconState === "paused" ? " paused" : "")
+            + (iconState === "session" ? " session" : "")}>
+          {iconState === "paused" ? <PaperclipPaused size={16} />
+            : iconState === "session" ? <PaperclipSpy size={16} />
+              : <Paperclip size={16} />}
+        </span>
+        <span className="mb-clock">{clock}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Code editor window (ambient context) ---------- */
+function EditorWindow() {
+  const lines = [
+    [["com", "// ClipRowView.swift"]],
+    [],
+    [["key", "var"], ["", " body: "], ["key", "some "], ["type", "View"], ["", " {"]],
+    [["", "    "], ["type", "HStack"], ["", "(spacing: "], ["num", "5"], ["", ") {"]],
+    [["", "        "], ["key", "if"], ["", " clip."], ["fn", "ephemeral"], ["", " {"]],
+    [["", "            "], ["type", "Image"], ["", "(systemName: "], ["str", "\"hourglass\""], ["", ")"]],
+    [["", "        }"]],
+    [["", "        "], ["key", "if"], ["", " clip.maskMode == ."], ["fn", "blurred"], ["", " {"]],
+    [["", "            "], ["type", "Text"], ["", "(seg.middle)."], ["fn", "blur"], ["", "(radius: "], ["num", "4.5"], ["", ")"]],
+    [["", "        } "], ["key", "else"], ["", " {"]],
+    [["", "            "], ["type", "Text"], ["", "(clip."], ["fn", "preview"], ["", ")"]],
+    [["", "        }"]],
+    [["", "        "], ["key", "if"], ["", " "], ["key", "let"], ["", " alias { "], ["type", "Text"], ["", "(alias)."], ["fn", "italic"], ["", "() }"]],
+    [["", "    }"]],
+    [["", "}"]],
+  ];
+  return (
+    <div className="win editor">
+      <div className="win-titlebar">
+        <div className="traffic"><span className="r" /><span className="y" /><span className="g" /></div>
+        <span className="win-title">ClipRowView.swift — Cliplet</span>
+      </div>
+      <div className="editor-body">
+        <div className="gutter">{lines.map((_, i) => <div key={i}>{i + 1}</div>)}</div>
+        <div className="code">
+          {lines.map((toks, i) => (
+            <div key={i}>{toks.length ? toks.map((t, j) => (
+              <span key={j} className={t[0] ? "tk-" + t[0] : ""}>{t[1]}</span>
+            )) : "\u00A0"}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Chat / compose window (paste target) ---------- */
+function ChatWindow({ pasted, sent, sendReady }) {
+  return (
+    <div className="win chat">
+      <div className="win-titlebar">
+        <div className="traffic"><span className="r" /><span className="y" /><span className="g" /></div>
+        <span className="chat-name">Design — Messages</span>
+      </div>
+      <div className="chat-body">
+        <div className="msg them">Did the new screenshot land?</div>
+        {sent && (
+          <div className="msg me img-bubble">
+            <span className="bubble-img shot-art" />
+          </div>
+        )}
+      </div>
+      <div className="compose">
+        <div className="compose-field" data-hit="chat-field">
+          {pasted && !sent && <span className="paste-thumb shot-art" />}
+          {!pasted && <span className="placeholder">Message</span>}
+          {pasted && !sent && <span style={{ color: "var(--chat-sub)" }}>Screenshot.png</span>}
+        </div>
+        <div className={"send-btn" + (sendReady ? " ready" : "")} data-hit="send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V6M6 12l6-6 6 6" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- masked value helpers ---------- */
+function clipIsBinary(kind) {
+  return kind === "image" || kind === "file" || kind === "audio" || kind === "other";
+}
+const HIDDEN_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022";
+function blurSplit(text, leading, trailing) {
+  const chars = Array.from(text);
+  const lead = Math.max(0, leading);
+  const trail = Math.max(0, trailing);
+  if (lead + trail >= chars.length) return { prefix: "", middle: text, suffix: "" };
+  return {
+    prefix: chars.slice(0, lead).join(""),
+    middle: chars.slice(lead, chars.length - trail).join(""),
+    suffix: chars.slice(chars.length - trail).join(""),
+  };
+}
+
+function MaskedValue({ clip, revealLead, revealTrail }) {
+  const masked = clip.maskMode && clip.maskMode !== "none" && !clip.revealed;
+  if (masked && clip.maskMode === "blurred") {
+    const seg = blurSplit(clip.preview, revealLead, revealTrail);
+    return (
+      <span className="pr-val">
+        <span className="seg-prefix">{seg.prefix}</span>
+        <span className="seg-mid">{seg.middle}</span>
+        <span className="seg-suffix">{seg.suffix}</span>
+      </span>
+    );
+  }
+  if (masked && clip.maskMode === "hidden") {
+    return <span className="pr-val"><span className="pr-hidden">{HIDDEN_PLACEHOLDER}</span></span>;
+  }
+  // shown, or revealed: blurred clips animate the blur away
+  if (clip.maskMode === "blurred" && clip.revealed) {
+    const seg = blurSplit(clip.preview, revealLead, revealTrail);
+    return (
+      <span className="pr-val revealed">
+        <span className="seg-prefix">{seg.prefix}</span>
+        <span className="seg-mid">{seg.middle}</span>
+        <span className="seg-suffix">{seg.suffix}</span>
+      </span>
+    );
+  }
+  return <span className="pr-val">{clip.preview}</span>;
+}
+
+/* ---------- Cliplet popover ---------- */
+function Popover({ open, left, top, clips, search, placeholder, selectedId, deleteConfirmId,
+  flashId, footerHot, paused, sessionActive, revealLead, revealTrail }) {
+  return (
+    <div className={"popover-wrap " + (open ? "open" : "closed")} style={{ left, top, width: 440 }}>
+      <div className="notch" />
+      <div className="popover">
+        <div className="po-header" data-hit="search">
+          {search ? (
+            <span className="ph-query">{search}<span className="ph-caret" /></span>
+          ) : (
+            <span className="ph-placeholder">{placeholder || "Type to filter. Click to copy."}</span>
+          )}
+        </div>
+        <div className="po-divider" />
+        <div className="po-list">
+          {clips.map((clip, i) => {
+            const sel = clip.id === selectedId;
+            const confirm = clip.id === deleteConfirmId;
+            const aliasOut = clip.alias && clip.alias.trim() ? clip.alias.trim() : null;
+            return (
+              <div key={clip.id} data-hit={"row-" + clip.id}
+                className={"po-row"
+                  + (clipIsBinary(clip.kind) ? " binary" : "")
+                  + (sel && !confirm ? " selected" : "")
+                  + (confirm ? " confirm-delete" : "")
+                  + (clip.id === flashId ? " flash" : "")}>
+                {clip.ephemeral && <span className="pr-lead"><HourglassIcon size={11} /></span>}
+                {clip.pinned && <span className="pr-lead"><PinIcon size={11} /></span>}
+                <span className="pr-text">
+                  <MaskedValue clip={clip} revealLead={revealLead} revealTrail={revealTrail} />
+                  {aliasOut && <span className="pr-alias">{aliasOut}</span>}
+                </span>
+                {confirm
+                  ? <span className="pr-del">Delete? ⌦ again</span>
+                  : (i < 9 && <span className="pr-key">⌘{i + 1}</span>)}
+              </div>
+            );
+          })}
+        </div>
+        <div className="po-divider" />
+        <div className="po-footer">
+          <div className={"po-foot-btn" + (footerHot === "pause" ? " hot" : "")} data-hit="foot-pause">{paused ? "Resume Cliplet" : "Pause Cliplet"}</div>
+          <div className={"po-foot-btn" + (footerHot === "session" ? " hot" : "")} data-hit="foot-session">{sessionActive ? "End Temporary Session" : "Start Temporary Session"}</div>
+          <div className="po-foot-sep" />
+          <div className={"po-foot-btn" + (footerHot === "clear" ? " hot" : "")}>Clear</div>
+          <div className="po-foot-sep" />
+          <div className={"po-foot-btn" + (footerHot === "prefs" ? " hot" : "")}>Preferences</div>
+          <div className={"po-foot-btn" + (footerHot === "quit" ? " hot" : "")}>Quit</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- context / command menu (right-click) ---------- */
+function CtxMenu({ left, top, items, hot }) {
+  return (
+    <div className="ctx-menu" style={{ left, top }}>
+      {items.map((it, i) => it.sep
+        ? <div key={i} className="ctx-sep" />
+        : (
+          <div key={i} className={"ctx-item" + (i === hot ? " hot" : "") + (it.destructive ? " destructive" : "")}>
+            <span>{it.label}</span>
+            {it.key && <span className="ci-key">{it.key}</span>}
+          </div>
+        ))}
+    </div>
+  );
+}
+
+/* ---------- Quick Look ---------- */
+function QuickLook({ show, clip }) {
+  return (
+    <div className={"quicklook-scrim" + (show ? " show" : "")}>
+      <div className="quicklook">
+        <div className="ql-bar">
+          <div className="ql-tl"><span style={{ background: "#ff5f57" }} /><span style={{ background: "#febc2e" }} /><span style={{ background: "#28c840" }} /></div>
+          {clip ? clip.qlTitle : ""}
+          <span className="ql-share">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v12M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+            </svg>
+          </span>
+        </div>
+        <div className="ql-body">
+          <div className="ql-image shot-art" />
+          <div className="ql-meta">
+            <span>{clip ? clip.qlDims : ""}</span>
+            <span>{clip ? clip.qlSize : ""}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Edit modal (alias + Show / Blur / Hide) ---------- */
+function EditModal({ show, preview, alias, aliasFocus, mode, saveHot, cancelHot }) {
+  const modes = [["none", "Show"], ["blurred", "Blur"], ["hidden", "Hide"]];
+  return (
+    <div className={"edit-scrim" + (show ? " show" : "")}>
+      <div className="edit-modal">
+        <div className="em-preview">{preview}</div>
+        <div className="edit-group">
+          <div className="edit-row">
+            <span className="er-label">Alias</span>
+            <span className={"er-field" + (aliasFocus ? " focus" : "")}>
+              {alias ? <span>{alias}</span> : <span className="ef-placeholder">optional</span>}
+              {aliasFocus && <span className="ef-caret" />}
+            </span>
+          </div>
+          <div className="edit-row">
+            <span className="er-label">Display</span>
+            <span className="er-seg">
+              {modes.map(([val, label]) => (
+                <span key={val} className={"seg-opt" + (mode === val ? " on" : "")}>{label}</span>
+              ))}
+            </span>
+          </div>
+        </div>
+        <div className="edit-actions">
+          <span className={"edit-btn" + (cancelHot ? " hot" : "")}>Cancel</span>
+          <span className={"edit-btn primary" + (saveHot ? " hot" : "")}>Save</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Confirm dialog (end temporary session) ---------- */
+function ConfirmDialog({ show, count, dontAsk, keepHot, discardHot }) {
+  return (
+    <div className={"dialog-scrim" + (show ? " show" : "")}>
+      <div className="dialog">
+        <div className="dlg-icon"><HourglassIcon size={24} /></div>
+        <div className="dlg-title">End temporary session?</div>
+        <div className="dlg-msg">{count} clip{count === 1 ? "" : "s"} captured this session will be discarded. This can’t be undone.</div>
+        <div className="dlg-check">
+          <span className={"box" + (dontAsk ? " on" : "")}>
+            {dontAsk && (
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
+            )}
+          </span>
+          Don’t ask again
+        </div>
+        <div className="dlg-actions">
+          <span className={"dlg-btn" + (keepHot ? " hot" : "")}>Keep All</span>
+          <span className={"dlg-btn primary" + (discardHot ? " hot" : "")}>Discard</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- "What others see" screen-share pane ---------- */
+function SharePane({ show }) {
+  return (
+    <div className={"share-pane" + (show ? " show" : "")}>
+      <div className="share-bar">
+        <span className="sb-dot" style={{ background: "#ff5f57" }} />
+        <span className="sb-dot" style={{ background: "#febc2e" }} />
+        <span className="sb-dot" style={{ background: "#28c840" }} />
+        <span style={{ marginLeft: 4 }}>What your audience sees</span>
+        <span className="sb-rec"><span className="d" />REC</span>
+      </div>
+      <div className="share-body">
+        <div className="share-mini">
+          <div className="mini-wall" />
+          <div className="mini-menubar" />
+          <div className="mini-win" style={{ left: 22, top: 60, width: 150, height: 132 }}>
+            <div className="mw-bar" />
+          </div>
+          <div className="mini-win" style={{ left: 196, top: 120, width: 120, height: 78 }}>
+            <div className="mw-bar" />
+          </div>
+        </div>
+        <div className="share-redact">
+          <span className="sr-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" opacity="0.4" />
+              <path d="M4 4l16 16" />
+              <path d="M9.5 9.7a3 3 0 0 0 4.2 4.2" />
+            </svg>
+          </span>
+          <span className="sr-label">Cliplet hidden from this screen</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Pointer + key hint + caption ---------- */
+function Pointer({ x, y, dur, clicking, down, hidden, right, z = 1 }) {
+  return (
+    <div className={"pointer" + (clicking ? " clicking" : "") + (down ? " down" : "")}
+      style={{ left: x, top: y, "--cur-dur": dur + "ms", display: hidden ? "none" : "block" }}>
+      <div style={{ transform: "scale(" + (1 / z) + ")", transformOrigin: "4px 2px" }}>
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path d="M5 2l0 17 4.2-4.1 2.6 6.1 3.1-1.3-2.6-6 5.8 0z"
+            fill="#fff" stroke="#1a1a1a" strokeWidth="1.2" strokeLinejoin="round" />
+        </svg>
+        <span className="click-ring" />
+        {right && (
+          <span style={{
+            position: "absolute", left: 16, top: 14, fontSize: 9, fontWeight: 700,
+            background: "rgba(20,20,24,0.9)", color: "#fff", padding: "1px 4px",
+            borderRadius: 4, letterSpacing: "0.3px", whiteSpace: "nowrap",
+          }}>right-click</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KeyHint({ show, label }) {
+  return (
+    <div className={"keyhint" + (show ? " show" : "")}>
+      <span className="keycap">{label}</span>
+    </div>
+  );
+}
+
+function Caption({ show, scene, text }) {
+  return (
+    <div className={"caption" + (show ? " show" : "")}>
+      {scene && <span className="scene-tag">{scene}</span>}{text}
+    </div>
+  );
+}
+
+Object.assign(window, {
+  MenuBar, EditorWindow, ChatWindow, Popover, CtxMenu, QuickLook, EditModal, ConfirmDialog,
+  SharePane, Pointer, KeyHint, Caption, clipIsBinary, blurSplit, MaskedValue,
+});
+
+  </script>
+  <script type="text/babel">
+/* global React, ReactDOM, MenuBar, EditorWindow, ChatWindow, Popover, CtxMenu, QuickLook, EditModal, ConfirmDialog, SharePane, Pointer, KeyHint, Caption */
+const { useState, useRef, useEffect } = React;
+
+/* ---------------- clip history data ---------------- */
+const DATA = [
+  { id: "c1", kind: "url",   preview: "https://github.com/eplugge/Cliplet" },
+  { id: "c2", kind: "text",  preview: "brew install --cask eplugge/tap/cliplet" },
+  { id: "c3", kind: "text",  preview: "AKIA4FJ2X9QZ7TKLMN3P" },
+  { id: "c4", kind: "image", preview: "Image: Screenshot · PNG · 777.2 KB",
+    qlTitle: "Screenshot.png", qlDims: "2048 × 1280", qlSize: "777.2 KB" },
+  { id: "c5", kind: "text",  preview: "Sept-Maple-Otter-92!", alias: "1Password", maskMode: "hidden" },
+  { id: "c6", kind: "text",  preview: 'git commit -m "ship blur + temp sessions"' },
+  { id: "c7", kind: "file",  preview: "File: brand-logo.svg · SVG" },
+  { id: "c8", kind: "text",  preview: "eelco@cliplet.app" },
+  { id: "c9", kind: "url",   preview: "https://news.ycombinator.com" },
+  { id: "c10", kind: "text", preview: "#0A5AD0" },
+];
+const REVEAL_LEAD = 4, REVEAL_TRAIL = 4;
+const cloneData = () => DATA.map((c) => ({
+  ...c, pinned: false, ephemeral: false, revealed: false,
+  maskMode: c.maskMode || "none", alias: c.alias || "",
+}));
+
+/* ephemeral clips captured during a temporary session */
+const SESSION_CLIPS = [
+  { id: "s1", kind: "text", preview: "TOTP 4471 92", ephemeral: true, maskMode: "none", alias: "", pinned: false, revealed: false },
+  { id: "s2", kind: "url",  preview: "https://staging.acme.dev/?token=tmp", ephemeral: true, maskMode: "none", alias: "", pinned: false, revealed: false },
+];
+
+function placeholderFor(paused, sessionActive) {
+  if (sessionActive) return "Temporary session — clips clear when you end it";
+  if (paused) return "Clipboard tracking paused";
+  return "Type to filter. Click to copy.";
+}
+
+/* ---------------- command / context menu item sets ---------------- */
+const COMMAND_ITEMS = [
+  { label: "Pause Cliplet" },
+  { label: "Start Temporary Session" },
+  { sep: true },
+  { label: "Clear" },
+  { sep: true },
+  { label: "Preferences…", key: "⌘," },
+  { label: "Quit Cliplet", key: "⌘Q" },
+];
+const ROW_CTX_ITEMS = [
+  { label: "Preview", key: "Space" },
+  { label: "Blur" },
+  { label: "Edit…" },
+  { label: "Pin" },
+  { sep: true },
+  { label: "Delete", destructive: true },
+];
+
+/* ---------------- frozen-frame presets (deterministic capture) ---------------- */
+function presetState(name) {
+  const arr = cloneData();
+  const set = (id, patch) => { const c = arr.find((x) => x.id === id); if (c) Object.assign(c, patch); };
+  const img = arr.find((c) => c.preview.includes("Screenshot"));
+  const base = {
+    clipActive: true, popoverOpen: true, pointerHidden: true, capShow: false, keyShow: false,
+    iconState: "normal", recording: false, paused: false, sessionActive: false,
+    search: "", quickLookId: null, deleteConfirmId: null, flashId: null, footerHot: null,
+    ctxMenu: null, editModal: null, dialog: null, sharePane: false,
+    chatPasted: false, chatSent: false, sendReady: false,
+    cam: CAM.pop, camDur: 0, hudScrim: false,
+  };
+  switch (name) {
+    case "hero": {
+      set("c3", { maskMode: "blurred", alias: "AWS key" });
+      return { ...base, clips: arr, selectedId: img.id };
+    }
+    case "secrets": {
+      set("c3", { maskMode: "blurred", alias: "AWS key" });
+      return { ...base, clips: arr, selectedId: "c3" };
+    }
+    case "editing": {
+      set("c3", { maskMode: "blurred", alias: "AWS key" });
+      return { ...base, clips: arr, selectedId: "c3", cam: CAM.edit,
+        editModal: { show: true, preview: "AKIA4FJ2X9QZ7TKLMN3P", alias: "AWS key", aliasFocus: false, mode: "blurred", saveHot: true, cancelHot: false } };
+    }
+    case "pause":
+      return { ...base, clips: arr, paused: true, iconState: "paused", selectedId: arr[0].id };
+    case "session": {
+      const withEph = [...SESSION_CLIPS.map((c) => ({ ...c })), ...arr];
+      return { ...base, clips: withEph, sessionActive: true, iconState: "session", selectedId: "s1", cam: CAM.popTall };
+    }
+    case "share": {
+      set("c3", { maskMode: "blurred", alias: "AWS key" });
+      return { ...base, clips: arr, recording: true, selectedId: "c5", sharePane: true, cam: CAM.share };
+    }
+    default: return { ...base, clips: arr };
+  }
+}
+const _params = new URLSearchParams(location.search);
+const _pathMatch = location.pathname.match(/_frames\/([a-z]+)-(dark|light)\.html/i);
+const FRAME = (() => {
+  const f = (typeof window !== "undefined" && window.__FRAME) || _params.get("frame") || (_pathMatch && _pathMatch[1]);
+  return (!f || f === "live") ? null : f;
+})();
+const FTHEME = (typeof window !== "undefined" && window.__THEME) || _params.get("theme") || (_pathMatch && _pathMatch[2]) || "dark";
+try { localStorage.removeItem("cliplet_frame"); localStorage.removeItem("cliplet_theme"); } catch (e) {}
+
+/* ---------------- layout ---------------- */
+const POPOVER_LEFT = 760;
+const POPOVER_TOP = 34;
+
+/* cinematic camera presets (canvas 1280×800 coords): center + zoom */
+const CAM = {
+  full: { cx: 640, cy: 400, z: 1 },
+  pop: { cx: 1004, cy: 300, z: 1.5 },
+  popTall: { cx: 1004, cy: 320, z: 1.42 },
+  edit: { cx: 640, cy: 392, z: 1.66 },
+  chat: { cx: 989, cy: 556, z: 1.52 },
+  dialog: { cx: 640, cy: 432, z: 1.78 },
+  ql: { cx: 640, cy: 400, z: 1.4 },
+  share: { cx: 612, cy: 330, z: 1.12 },
+  icon: { cx: 1080, cy: 150, z: 1.6 },
+};
+
+function matches(clip, q) {
+  if (!q) return true;
+  const hay = (clip.preview + " " + (clip.alias || "")).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function App() {
+  const [s, setS] = useState(() => ({
+    theme: FTHEME,
+    clock: "Thu 29 May  9:41",
+    clipActive: false,
+    popoverOpen: false,
+    search: "",
+    clips: cloneData(),
+    selectedId: null,
+    quickLookId: null,
+    deleteConfirmId: null,
+    flashId: null,
+    footerHot: null,
+    chatPasted: false,
+    chatSent: false,
+    sendReady: false,
+    iconState: "normal",
+    recording: false,
+    paused: false,
+    sessionActive: false,
+    ctxMenu: null,
+    editModal: null,
+    dialog: null,
+    sharePane: false,
+    curX: 360, curY: 470, curDur: 600, clicking: false, down: false, pointerHidden: false, pointerRight: false,
+    keyLabel: "", keyShow: false,
+    capStep: "", capText: "", capShow: false,
+    cam: null, camDur: 800, hudScrim: false,
+    ...(FRAME ? presetState(FRAME) : {}),
+  }));
+
+  const canvasRef = useRef(null);
+  const setRef = useRef(setS);
+  const ctrl = useRef({ paused: false, speed: 1, restart: false, frozen: false, startAt: null, alive: true });
+
+  const merge = (patch) => setRef.current((prev) => ({ ...prev, ...patch }));
+
+  function center(sel) {
+    const cv = canvasRef.current;
+    if (!cv) return null;
+    const el = cv.querySelector(sel);
+    if (!el) return null;
+    const cr = cv.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const fit = cr.width / 1280;
+    const cam = ctrl.current.cam || { cx: 640, cy: 400, z: 1 };
+    const z = cam.z, tx = 640 - cam.cx * z, ty = 400 - cam.cy * z;
+    // canvas-space (camera already applied), then invert camera → logical coords
+    const sx = (r.left + r.width / 2 - cr.left) / fit;
+    const sy = (r.top + r.height / 2 - cr.top) / fit;
+    return { x: (sx - tx) / z, y: (sy - ty) / z };
+  }
+  const tip = (p) => (p ? { x: p.x - 4, y: p.y - 2 } : null);
+
+  useEffect(() => {
+    const c = ctrl.current;
+    c.alive = true;
+
+    if (FRAME) {
+      document.body.classList.add("capture");
+      window.__demo = {
+        live() { localStorage.setItem("cliplet_frame", "live"); location.reload(); },
+        setTheme(t) { merge({ theme: t }); },
+      };
+      return () => { c.alive = false; };
+    }
+
+    async function wait(ms) {
+      let rem = ms;
+      while (rem > 0) {
+        if (!c.alive) throw "dead";
+        if (c.restart) throw "restart";
+        if (c.paused) { await sleep(60); continue; }
+        const step = Math.min(50, rem);
+        await sleep(step / c.speed);
+        rem -= step;
+      }
+    }
+    async function moveTo(target, dur = 650) {
+      const p = typeof target === "function" ? target() : target;
+      const t = tip(p);
+      if (t) merge({ curX: t.x, curY: t.y, curDur: dur });
+      await wait(dur + 40);
+    }
+    async function move(x, y, dur = 600) { merge({ curX: x, curY: y, curDur: dur }); await wait(dur + 40); }
+    async function click() {
+      merge({ down: true });
+      await wait(110);
+      merge({ down: false, clicking: true });
+      await wait(420);
+      merge({ clicking: false });
+    }
+    async function rightClick() {
+      merge({ pointerRight: true, down: true });
+      await wait(150);
+      merge({ down: false, clicking: true });
+      await wait(420);
+      merge({ clicking: false });
+      await wait(120);
+      merge({ pointerRight: false });
+    }
+    async function key(label) {
+      merge({ keyLabel: label, keyShow: true });
+      await wait(560);
+      merge({ keyShow: false });
+      await wait(140);
+    }
+    async function caption(text) {
+      merge({ capShow: false });
+      await wait(220);
+      merge({ capText: text, capShow: true, hudScrim: true });
+      await wait(140);
+    }
+    function setStep(label) { merge({ capStep: label }); }
+    async function focus(cam, dur = 900) {
+      ctrl.current.cam = cam;
+      merge({ cam: cam, camDur: dur });
+      await wait(Math.min(dur, 720));
+    }
+    async function type(text, per = 95) {
+      let cur = "";
+      for (const ch of text) { cur += ch; merge({ search: cur }); await wait(per); }
+    }
+    function find(sub) { return DATA.find((cl) => cl.preview.includes(sub)); }
+
+    function resetAll(extra) {
+      ctrl.current.cam = CAM.full;
+      merge({
+        clipActive: false, popoverOpen: false, search: "", clips: cloneData(),
+        selectedId: null, quickLookId: null, deleteConfirmId: null, flashId: null, footerHot: null,
+        chatPasted: false, chatSent: false, sendReady: false,
+        iconState: "normal", recording: false, paused: false, sessionActive: false,
+        ctxMenu: null, editModal: null, dialog: null, sharePane: false,
+        keyShow: false, curX: 360, curY: 470, curDur: 700, pointerHidden: false, pointerRight: false,
+        cam: CAM.full, camDur: 900, hudScrim: false,
+        ...(extra || {}),
+      });
+    }
+
+    /* ----------- SCENE 1: capture → search → quick look → paste ----------- */
+    async function sceneCapture() {
+      resetAll();
+      setStep("Clipboard history");
+      await focus(CAM.full, 100);
+      await caption("Everything you copy — kept and searchable");
+      await wait(1100);
+
+      await caption("Click the menu-bar icon");
+      await focus(CAM.icon, 850);
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 650);
+      await wait(100); await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
+      await focus(CAM.pop, 850);
+      await wait(700);
+
+      await caption("Type to filter — by contents or alias");
+      await moveTo(() => tip(center('[data-hit="search"]')), 480);
+      await click();
+      await type("screen", 105);
+      await wait(450);
+      const img = find("Screenshot");
+      merge({ selectedId: img.id });
+      await wait(650);
+
+      await caption("Press Space for a Quick Look");
+      await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 380);
+      await key("space");
+      await focus(CAM.ql, 600);
+      merge({ quickLookId: img.id });
+      await wait(1900);
+      merge({ quickLookId: null });
+      await focus(CAM.pop, 600);
+      await wait(380);
+
+      await caption("Click to copy it back");
+      await moveTo(() => tip(center('[data-hit="row-' + img.id + '"]')), 360);
+      await click();
+      merge({ popoverOpen: false, clipActive: false, search: "" });
+      await wait(450);
+
+      await caption("Paste anywhere — ⌘V");
+      await focus(CAM.chat, 850);
+      await moveTo(() => tip(center('[data-hit="chat-field"]')), 700);
+      await click();
+      await wait(180);
+      await key("⌘V");
+      merge({ chatPasted: true, sendReady: true });
+      await wait(750);
+      await moveTo(() => tip(center('[data-hit="send"]')), 440);
+      await click();
+      merge({ chatSent: true });
+      await wait(1900);
+    }
+
+    /* ----------- SCENE 2: blur / mask sensitive clips ----------- */
+    async function sceneBlur() {
+      resetAll();
+      setStep("Blur & hide");
+      await caption("Copied a secret? Mask it in a click");
+      await focus(CAM.icon, 100);
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 650);
+      await wait(100); await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: "c3" });
+      await focus(CAM.pop, 850);
+      await wait(700);
+
+      await caption("Some clips are already hidden behind ••••••");
+      merge({ selectedId: "c5" });
+      await wait(1700);
+
+      await caption("Right-click any clip, then Edit…");
+      await moveTo(() => tip(center('[data-hit="row-c3"]')), 480);
+      merge({ selectedId: "c3" });
+      await wait(250);
+      await rightClick();
+      merge({ ctxMenu: { left: 980, top: 112, items: ROW_CTX_ITEMS, hot: -1 } });
+      await wait(550);
+      await move(1058, 173, 420);
+      merge({ ctxMenu: { left: 980, top: 112, items: ROW_CTX_ITEMS, hot: 2 } });
+      await wait(480);
+      await click();
+      merge({ ctxMenu: null, editModal: { show: true, preview: "AKIA4FJ2X9QZ7TKLMN3P", alias: "", aliasFocus: true, mode: "none", saveHot: false, cancelHot: false } });
+      await focus(CAM.edit, 700);
+      await wait(650);
+
+      await caption("Give it an alias…");
+      let a = "";
+      for (const ch of "AWS key") { a += ch; setRef.current((prev) => ({ ...prev, editModal: { ...prev.editModal, alias: a } })); await wait(95); }
+      await wait(500);
+
+      await caption("…then set the display to Blur");
+      setRef.current((prev) => ({ ...prev, editModal: { ...prev.editModal, aliasFocus: false, mode: "blurred" } }));
+      await wait(900);
+      setRef.current((prev) => ({ ...prev, editModal: { ...prev.editModal, saveHot: true } }));
+      await move(740, 470, 360);
+      await wait(160); await click();
+      setRef.current((prev) => ({
+        ...prev, editModal: null,
+        clips: prev.clips.map((cl) => cl.id === "c3" ? { ...cl, maskMode: "blurred", alias: "AWS key" } : cl),
+        flashId: "c3",
+      }));
+      await focus(CAM.pop, 700);
+      await wait(700); merge({ flashId: null });
+      await wait(650);
+
+      await caption("Reveal it only when you need it");
+      merge({ selectedId: "c3" });
+      await moveTo(() => tip(center('[data-hit="row-c3"]')), 380);
+      await key("⌥-click");
+      setRef.current((prev) => ({ ...prev, clips: prev.clips.map((cl) => cl.id === "c3" ? { ...cl, revealed: true } : cl) }));
+      await wait(1700);
+      setRef.current((prev) => ({ ...prev, clips: prev.clips.map((cl) => cl.id === "c3" ? { ...cl, revealed: false } : cl) }));
+      await wait(950);
+      await key("esc");
+      merge({ popoverOpen: false, clipActive: false });
+      await wait(1100);
+    }
+
+    /* ----------- SCENE 3: pause capture (right-click command menu) ----------- */
+    async function scenePause() {
+      resetAll();
+      setStep("Pause capture");
+      await caption("Right-click the icon for quick commands");
+      await focus(CAM.icon, 100);
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 650);
+      await wait(150);
+      await rightClick();
+      merge({ clipActive: true, ctxMenu: { left: 800, top: 30, items: COMMAND_ITEMS, hot: -1 } });
+      await wait(600);
+      await move(880, 47, 380);
+      merge({ ctxMenu: { left: 800, top: 30, items: COMMAND_ITEMS, hot: 0 } });
+      await wait(550);
+      await click();
+      merge({ ctxMenu: null, paused: true, iconState: "paused" });
+      await wait(450);
+
+      await caption("Capture paused — the icon shows it");
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 550);
+      await wait(1900);
+
+      await caption("Open Cliplet — it says it’s paused");
+      await click();
+      setRef.current((prev) => ({ ...prev, popoverOpen: true, selectedId: prev.clips[0].id }));
+      await focus(CAM.pop, 800);
+      await wait(2000);
+
+      await caption("Resume the moment you’re ready");
+      await moveTo(() => tip(center('[data-hit="foot-pause"]')), 560);
+      merge({ footerHot: "pause" });
+      await wait(280); await click();
+      merge({ footerHot: null, paused: false, iconState: "normal", popoverOpen: false, clipActive: false });
+      await wait(1300);
+    }
+
+    /* ----------- SCENE 4: temporary session ----------- */
+    async function sceneSession() {
+      resetAll();
+      setStep("Temporary session");
+      await caption("Working on something throwaway?");
+      await focus(CAM.icon, 100);
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 650);
+      await wait(100); await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: DATA[0].id });
+      await focus(CAM.popTall, 850);
+      await wait(650);
+
+      await caption("Start a temporary session");
+      await moveTo(() => tip(center('[data-hit="foot-session"]')), 520);
+      merge({ footerHot: "session" });
+      await wait(280); await click();
+      merge({ footerHot: null, sessionActive: true, iconState: "session" });
+      await wait(1200);
+
+      await caption("New clips are marked with an hourglass");
+      setRef.current((prev) => ({ ...prev, clips: [{ ...SESSION_CLIPS[0] }, ...prev.clips], selectedId: "s1", flashId: "s1" }));
+      await wait(700); merge({ flashId: null });
+      await wait(600);
+      setRef.current((prev) => ({ ...prev, clips: [{ ...SESSION_CLIPS[1] }, ...prev.clips], selectedId: "s2", flashId: "s2" }));
+      await wait(700); merge({ flashId: null });
+      await wait(1400);
+
+      await caption("End the session…");
+      await moveTo(() => tip(center('[data-hit="foot-session"]')), 520);
+      merge({ footerHot: "session" });
+      await wait(280); await click();
+      merge({ footerHot: null, dialog: { show: true, count: 2, dontAsk: false, keepHot: false, discardHot: false } });
+      await focus(CAM.dialog, 700);
+      await wait(950);
+
+      await caption("…and those clips are gone for good");
+      setRef.current((prev) => ({ ...prev, dialog: { ...prev.dialog, discardHot: true } }));
+      await move(700, 470, 360);
+      await wait(220); await click();
+      setRef.current((prev) => ({
+        ...prev, dialog: null, sessionActive: false, iconState: "normal",
+        clips: prev.clips.filter((cl) => !cl.ephemeral),
+        selectedId: "c1",
+      }));
+      await focus(CAM.pop, 700);
+      await wait(1400);
+      await key("esc");
+      merge({ popoverOpen: false, clipActive: false });
+      await wait(1100);
+    }
+
+    /* ----------- SCENE 5: hide during screen sharing ----------- */
+    async function sceneShare() {
+      resetAll({ clips: cloneData().map((cl) => cl.id === "c3" ? { ...cl, maskMode: "blurred", alias: "AWS key" } : cl) });
+      setStep("Screen sharing");
+      await focus(CAM.full, 100);
+      await caption("Sharing your screen?");
+      await wait(800);
+      merge({ recording: true });
+      await caption("Cliplet excludes itself from the capture");
+      await wait(1000);
+
+      await focus(CAM.icon, 800);
+      await moveTo(() => tip(center('[data-hit="clip-icon"]')), 650);
+      await wait(100); await click();
+      merge({ clipActive: true, popoverOpen: true, selectedId: "c5" });
+      await focus(CAM.pop, 800);
+      await wait(1300);
+
+      await caption("Your history is invisible to your audience");
+      await focus(CAM.share, 850);
+      merge({ sharePane: true });
+      await wait(2900);
+
+      merge({ pointerHidden: true });
+      await wait(400);
+      merge({ sharePane: false });
+      await wait(400);
+      merge({ popoverOpen: false, clipActive: false, recording: false });
+      await wait(1100);
+    }
+
+    const SCENES = {
+      capture: sceneCapture, blur: sceneBlur, pause: scenePause,
+      session: sceneSession, share: sceneShare,
+    };
+    const ORDER = ["capture", "blur", "pause", "session", "share"];
+
+    async function main() {
+      await sleep(250);
+      while (c.alive) {
+        if (c.frozen) {
+          if (c.frozenName) applyPreset(c.frozenName);
+          await sleep(140); continue;
+        }
+        let order = ORDER;
+        if (c.startAt && ORDER.includes(c.startAt)) {
+          const i = ORDER.indexOf(c.startAt);
+          order = [...ORDER.slice(i), ...ORDER.slice(0, i)];
+        }
+        c.startAt = null;
+        c.restart = false;
+        try {
+          for (const name of order) {
+            if (c.frozen) break;
+            await SCENES[name]();
+          }
+        } catch (e) {
+          if (e !== "restart" && e !== "dead") console.error(e);
+        }
+        c.restart = false;
+      }
+    }
+    main();
+
+    function applyPreset(name) {
+      const st = presetState(name);
+      const cam = name === "editing" ? CAM.edit : name === "share" ? CAM.share
+        : name === "session" ? CAM.popTall : CAM.pop;
+      merge({ ...st, pointerHidden: true, capShow: false, hudScrim: false, cam: cam, camDur: 0 });
+    }
+
+    window.__demo = {
+      pause() { c.paused = true; },
+      play() { c.paused = false; c.frozen = false; c.frozenName = null; },
+      restart() { c.startAt = "capture"; c.frozen = false; c.frozenName = null; c.paused = false; c.restart = true; },
+      scene(which) { c.startAt = which; c.frozen = false; c.frozenName = null; c.paused = false; c.restart = true; },
+      setTheme(t) { merge({ theme: t }); },
+      setSpeed(v) { c.speed = v; },
+      freeze(name, theme) { c.frozen = true; c.restart = true; c.frozenName = name; if (theme) merge({ theme }); },
+      thaw() { c.frozen = false; c.frozenName = null; c.paused = false; c.restart = true; merge({ pointerHidden: false }); },
+      hideChrome(v) { document.body.classList.toggle("capture", !!v); },
+    };
+
+    return () => { c.alive = false; };
+  }, []);
+
+  const filtered = s.clips.filter((c) => matches(c, s.search));
+  const mountPopover = FRAME ? s.popoverOpen : true;
+  const mountQuickLook = FRAME ? !!s.quickLookId : true;
+  const placeholder = placeholderFor(s.paused, s.sessionActive);
+
+  const cam = s.cam;
+  const z = cam ? cam.z : 1;
+  const cx = cam ? cam.cx : 640, cy = cam ? cam.cy : 400;
+  const worldStyle = {
+    transform: "translate(" + (640 - cx * z) + "px," + (400 - cy * z) + "px) scale(" + z + ")",
+    transition: "transform " + s.camDur + "ms cubic-bezier(0.4,0,0.2,1)",
+  };
+
+  return (
+    <div className="canvas" data-theme={s.theme} ref={canvasRef}>
+      <div className="world" style={worldStyle}>
+        <div className="wallpaper" />
+        <EditorWindow />
+        <ChatWindow pasted={s.chatPasted} sent={s.chatSent} sendReady={s.sendReady} />
+        <MenuBar clipActive={s.clipActive} clock={s.clock} iconState={s.iconState} recording={s.recording} />
+
+        <SharePane show={s.sharePane} />
+
+        {mountPopover && (
+          <div className="popover-layer">
+            <Popover
+              open={s.popoverOpen}
+              left={POPOVER_LEFT}
+              top={POPOVER_TOP}
+              clips={filtered}
+              search={s.search}
+              placeholder={placeholder}
+              selectedId={s.selectedId}
+              deleteConfirmId={s.deleteConfirmId}
+              flashId={s.flashId}
+              footerHot={s.footerHot}
+              paused={s.paused}
+              sessionActive={s.sessionActive}
+              revealLead={REVEAL_LEAD}
+              revealTrail={REVEAL_TRAIL}
+            />
+          </div>
+        )}
+
+        {s.ctxMenu && (
+          <div className="menu-layer">
+            <CtxMenu left={s.ctxMenu.left} top={s.ctxMenu.top} items={s.ctxMenu.items} hot={s.ctxMenu.hot} />
+          </div>
+        )}
+
+        {mountQuickLook && <QuickLook show={!!s.quickLookId} clip={DATA.find((c) => c.id === s.quickLookId)} />}
+
+        {s.editModal && <EditModal {...s.editModal} />}
+        {s.dialog && <ConfirmDialog {...s.dialog} />}
+
+        <Pointer x={s.curX} y={s.curY} dur={s.curDur} clicking={s.clicking} down={s.down} hidden={s.pointerHidden} right={s.pointerRight} z={z} />
+      </div>
+
+      <div className="hud">
+        <div className={"hud-scrim" + (s.hudScrim ? " show" : "")} />
+        <div className={"hud-key" + (s.keyShow ? " show" : "")}>
+          <span className="kc">{s.keyLabel}</span>
+        </div>
+        <div className={"bigcap" + (s.capShow ? " show" : "")}>
+          {s.capStep && <span className="bc-step">{s.capStep}</span>}
+          <span className="bc-text">{s.capText}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- scaling + controls ---------------- */
+function Root() {
+  const [scale, setScale] = useState(1);
+  const [theme, setTheme] = useState("dark");
+  const [paused, setPaused] = useState(false);
+  const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    const fit = () => {
+      const sc = Math.min(window.innerWidth / 1280, (window.innerHeight - 70) / 800);
+      setScale(sc);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  const scenes = [["capture", "Capture"], ["blur", "Blur"], ["pause", "Pause"], ["session", "Session"], ["share", "Screen share"]];
+
+  return (
+    <React.Fragment>
+      <div className="stage">
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
+          <App />
+        </div>
+      </div>
+      <div className="controls">
+        <button onClick={() => { window.__demo.play(); setPaused(false); }} className={!paused ? "active" : ""}>▶︎</button>
+        <button onClick={() => { window.__demo.pause(); setPaused(true); }} className={paused ? "active" : ""}>❚❚</button>
+        <button onClick={() => window.__demo.restart()}>↺</button>
+        <span className="ctl-sep" />
+        {scenes.map(([id, label]) => (
+          <button key={id} onClick={() => window.__demo.scene(id)}>{label}</button>
+        ))}
+        <span className="ctl-sep" />
+        <span className="ctl-label">Theme</span>
+        <button onClick={() => { window.__demo.setTheme("dark"); setTheme("dark"); }} className={theme === "dark" ? "active" : ""}>Dark</button>
+        <button onClick={() => { window.__demo.setTheme("light"); setTheme("light"); }} className={theme === "light" ? "active" : ""}>Light</button>
+        <span className="ctl-sep" />
+        <span className="ctl-label">Speed</span>
+        {[0.5, 1, 1.5].map((v) => (
+          <button key={v} onClick={() => { window.__demo.setSpeed(v); setSpeed(v); }} className={speed === v ? "active" : ""}>{v}×</button>
+        ))}
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
+
+  </script>
+</body>
+</html>

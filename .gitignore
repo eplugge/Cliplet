@@ -1,8 +1,0 @@
-.superpowers/
-.build/
-build/
-dist/
-*.iconset
-docs/superpowers/
-.swiftpm/
-Cliplet.xcodeproj/
