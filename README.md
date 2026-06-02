@@ -1,4 +1,4 @@
-<!-- Cliplet README. Images live in docs/images/ (generated from demo/Cliplet Demo.html). -->
+<!-- Cliplet README. Images live in docs/images/. Interactive demo source: demo/index.html (hosted at https://eplugge.github.io/Cliplet/). -->
 
 <h1 align="center">Cliplet</h1>
 
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <sub><em>Prefer it interactive? Open <a href="demo/Cliplet%20Demo.html"><code>demo/Cliplet&nbsp;Demo.html</code></a> in any browser.</em></sub>
+  <sub><em>▶ <a href="https://eplugge.github.io/Cliplet/">Try the interactive demo</a></em></sub>
 </p>
 
 ---
